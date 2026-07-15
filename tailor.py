@@ -1,0 +1,63 @@
+# tailor.py — pulls your real experience + a job ad, sends to Claude, returns tailored bullets.
+import store
+from ai import ask_claude
+import json
+
+def build_system():
+    """Assemble the editor instructions from your saved style settings."""
+    tone    = store.get_setting("style_tone", "Professional")
+    length  = store.get_setting("style_length", "Medium")
+    maxb     = store.get_setting("style_max_bullets", "4")
+    metrics = store.get_setting("style_metrics", "yes") == "yes"
+    custom  = store.get_setting("style_custom", "")
+
+    rules = (
+        "You are an expert resume editor. Using ONLY the candidate's real base resume and "
+        "logged tasks, write tailored resume content for the job ad. You may reword, reorder, "
+        "and emphasize real experience to match the ad's language, but NEVER invent employers, "
+        "titles, dates, metrics, or skills the candidate does not have.\n\n"
+        f"STYLE: tone = {tone}; bullet length = {length}; up to {maxb} bullets per job. "
+        "Start every bullet with a strong action verb. "
+    )
+    if metrics:
+        rules += "Lead with quantified results (numbers, %, $) whenever the real task supports it. "
+    if custom:
+        rules += f"Extra instructions: {custom} "
+    rules += (
+        "\n\nOUTPUT: Markdown only — no '---' lines, no commentary. Start with a 2-3 line "
+        "'## Summary'. Then, for each relevant job, output a line containing ONLY that job's tag "
+        "exactly as given (e.g. '[[JOB:3]]') on its own line, followed by that job's bullets "
+        "starting with '- '. Do NOT write company names, job titles, or dates yourself — only the "
+        "[[JOB:id]] tag and the bullets. Skip jobs not relevant to this ad."
+    )
+    return rules
+
+def build_candidate_profile():
+    """Assemble the stored resume + work history + tasks into one text block."""
+    lines = ["BASE RESUME:\n" + store.get_setting("base_resume", "") + "\n",
+             "WORK HISTORY AND TASKS (real experience only):"]
+    for job in store.list_jobs():
+        lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}")
+        for task in store.list_tasks(job["id"]):
+            lines.append(f"- {task['text']}")
+    return "\n".join(lines)
+
+def tailor_resume(job_ad):
+    prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
+    return ask_claude(prompt, system=build_system(), model="claude-sonnet-4-6", max_tokens=1500)
+
+ANALYZE_SYS = (
+    "You are a precise resume-matching analyst. Compare the candidate's real resume and logged "
+    "tasks to the job ad. Respond with ONLY valid JSON — no code fences, no commentary — in exactly "
+    'this shape: {"score": <integer 0-100>, "matched": [<skills/keywords from the ad the candidate '
+    'genuinely demonstrates>], "missing": [<important requirements in the ad NOT evidenced in the '
+    'resume>], "gaps": [<short honest notes on real gaps>]}. '
+    'Do not pad "matched" with things the resume does not actually show.'
+)
+
+def analyze_match(job_ad):
+    """Compare the candidate to a job ad; return a dict with score, matched, missing, gaps."""
+    prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
+    raw = ask_claude(prompt, system=ANALYZE_SYS, model="claude-sonnet-4-6", max_tokens=800)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()   # strip any fences
+    return json.loads(clean)   # turn the JSON text into a Python dict

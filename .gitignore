@@ -1,0 +1,6 @@
+.env
+.venv/
+app.db
+__pycache__/
+*.pdf
+app_backup.py
