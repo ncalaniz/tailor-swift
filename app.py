@@ -158,7 +158,8 @@ with profile_tab:
     st.caption("Each job holds its own tasks. Expand a job to edit it, see its tasks, or add more.")
     for job in store.list_jobs():
         tasks = store.list_tasks(job["id"])
-        with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)"):
+        with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)",
+                         expanded=(st.session_state.get("open_job") == job["id"])):
             # --- job details ---
             c = st.columns(5)
             employer = c[0].text_input("Employer", value=job["employer"] or "", key=f"emp{job['id']}")
@@ -168,10 +169,13 @@ with profile_tab:
             loc = c[4].text_input("Location", value=job["location"] or "", key=f"loc{job['id']}")
             b = st.columns(2)
             if b[0].button("Save changes", key=f"savejob{job['id']}"):
+                st.session_state["open_job"] = job["id"]
                 store.update_job(job["id"], employer, role, start, end, loc)
                 st.success("Updated."); st.rerun()
             if b[1].button("Delete job (and its tasks)", key=f"deljob{job['id']}"):
-                store.delete_job(job["id"]); st.rerun()
+                store.delete_job(job["id"])
+                st.session_state.pop("open_job", None)
+                st.rerun()
 
             st.divider()
 
@@ -192,6 +196,7 @@ with profile_tab:
                         if new_tag != (t["tag"] or ""):
                             store.set_task_tag(t["id"], new_tag); st.rerun()
                         if cols[2].button("✕", key=f"deltask{t['id']}"):
+                            st.session_state["open_job"] = job["id"]
                             store.delete_task(t["id"]); st.rerun()
 
             # --- add tasks, scoped to THIS job ---
@@ -199,43 +204,49 @@ with profile_tab:
                 new_tasks = st.text_area("Add accomplishments (one per line)", key=f"newtask{job['id']}")
                 new_tag = st.text_input("Tag for these (optional, e.g. leadership, IAM)", key=f"newtag{job['id']}")
                 if st.form_submit_button("Add") and new_tasks.strip():
+                    st.session_state["open_job"] = job["id"]
                     for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
-                    st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
-                    st.caption("Write in plain words — a paragraph, a story, however it comes out. "
-                            "It gets split into separate polished entries that you review before "
-                            "saving. Only what you actually say gets used — nothing is invented.")
-                    dump = st.text_area("What did you do at this job?", key=f"dump{job['id']}",
-                                        placeholder="e.g. I ran the team that owned provisioning...")
-                    if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
-                        if dump.strip():
-                            with st.spinner("Turning your words into task entries..."):
-                                try:
-                                    st.session_state[f"drafts{job['id']}"] = braindump_to_tasks(dump)
-                                except Exception as e:
-                                    st.error(f"Couldn't parse that — try again. ({e})")
-                        else:
-                            st.warning("Write something first.")
+            st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
+            st.caption("Write in plain words — a paragraph, a story, however it comes out. "
+                    "It gets split into separate polished entries that you review before "
+                    "saving. Only what you actually say gets used — nothing is invented.")
+            if st.session_state.pop(f"cleardump{job['id']}", False):
+                st.session_state.pop(f"dump{job['id']}", None)
+            dump = st.text_area("What did you do at this job?", key=f"dump{job['id']}",
+                                placeholder="e.g. I ran the team that owned provisioning...")
+            if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
+                st.session_state["open_job"] = job["id"]
+                if dump.strip():
+                    with st.spinner("Turning your words into task entries..."):
+                        try:
+                            st.session_state[f"drafts{job['id']}"] = braindump_to_tasks(dump)
+                        except Exception as e:
+                            st.error(f"Couldn't parse that — try again. ({e})")
+                else:
+                    st.warning("Write something first.")
 
-                    drafts = st.session_state.get(f"drafts{job['id']}", [])
-                    if drafts:
-                        st.markdown("**Review before saving** — edit anything, untick what's wrong:")
-                        keep, edited = [], []
-                        for i, d in enumerate(drafts):
-                            cols = st.columns([0.5, 6])
-                            k = cols[0].checkbox(" ", value=True, key=f"keep{job['id']}_{i}",
-                                                label_visibility="collapsed")
-                            e = cols[1].text_area(" ", value=d, key=f"edit{job['id']}_{i}",
-                                                label_visibility="collapsed", height=68)
-                            keep.append(k); edited.append(e)
-                        if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
-                            n = 0
-                            for k, e in zip(keep, edited):
-                                if k and e.strip():
-                                    store.add_task(job["id"], e.strip()); n += 1
-                            st.session_state.pop(f"drafts{job['id']}", None)
-                            st.success(f"Saved {n} tasks."); st.rerun()
+            drafts = st.session_state.get(f"drafts{job['id']}", [])
+            if drafts:
+                st.markdown("**Review before saving** — edit anything, untick what's wrong:")
+                keep, edited = [], []
+                for i, d in enumerate(drafts):
+                    cols = st.columns([0.5, 6])
+                    k = cols[0].checkbox(" ", value=True, key=f"keep{job['id']}_{i}",
+                                        label_visibility="collapsed")
+                    e = cols[1].text_area(" ", value=d, key=f"edit{job['id']}_{i}",
+                                        label_visibility="collapsed", height=68)
+                    keep.append(k); edited.append(e)
+                if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
+                    st.session_state["open_job"] = job["id"]
+                    n = 0
+                    for k, e in zip(keep, edited):
+                        if k and e.strip():
+                            store.add_task(job["id"], e.strip()); n += 1
+                    st.session_state.pop(f"drafts{job['id']}", None)
+                    st.session_state[f"cleardump{job['id']}"] = True
+                    st.success(f"Saved {n} tasks."); st.rerun()
                     
 
     with st.form("add_job", clear_on_submit=True):
