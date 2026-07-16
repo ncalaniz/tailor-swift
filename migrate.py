@@ -3,9 +3,9 @@ import store
 
 conn = store.get_connection()
 try:
-    conn.execute("ALTER TABLE jobs ADD COLUMN location TEXT;")
+    conn.execute("ALTER TABLE tasks ADD COLUMN tag TEXT DEFAULT '';")
     conn.commit()
-    print("Added 'location' column to jobs.")
+    print("Added 'tag' column to jobs.")
 except Exception as e:
     print("Skipped (probably already added):", e)
 conn.close()

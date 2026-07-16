@@ -79,13 +79,13 @@ st.caption("Tailor Swift — resumes built on your real experience.")
 
 _setup_done = bool(_name and store.get_setting("base_resume", "").strip())
 if _setup_done:
-    tailor_tab, apps_tab, bank_tab, profile_tab, setup_tab = st.tabs(
-        ["Tailor", "Applications", "Task Bank", "Profile", "Setup"]
+    tailor_tab, apps_tab, profile_tab, setup_tab = st.tabs(
+        ["Tailor", "Applications", "Profile", "Setup"]
     )
 else:
     st.info("👋 New here? Start in the Setup tab, then add your base resume and work history under Profile.")
-    setup_tab, profile_tab, bank_tab, tailor_tab, apps_tab = st.tabs(
-        ["Setup", "Profile", "Task Bank", "Tailor", "Applications"]
+    setup_tab, profile_tab, tailor_tab, apps_tab = st.tabs(
+        ["Setup", "Profile", "Tailor", "Applications"]
     )
 
 # ================= Setup (contact details only) =================
@@ -154,9 +154,12 @@ with profile_tab:
         store.set_setting("base_resume", resume_text)
         st.success("Saved.")
 
-    st.subheader("Work history")
+    st.subheader("Work history & accomplishments")
+    st.caption("Each job holds its own tasks. Expand a job to edit it, see its tasks, or add more.")
     for job in store.list_jobs():
-        with st.expander(f"{job['employer']} — {job['role']}"):
+        tasks = store.list_tasks(job["id"])
+        with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)"):
+            # --- job details ---
             c = st.columns(5)
             employer = c[0].text_input("Employer", value=job["employer"] or "", key=f"emp{job['id']}")
             role = c[1].text_input("Role", value=job["role"] or "", key=f"role{job['id']}")
@@ -167,8 +170,38 @@ with profile_tab:
             if b[0].button("Save changes", key=f"savejob{job['id']}"):
                 store.update_job(job["id"], employer, role, start, end, loc)
                 st.success("Updated."); st.rerun()
-            if b[1].button("Delete job", key=f"deljob{job['id']}"):
+            if b[1].button("Delete job (and its tasks)", key=f"deljob{job['id']}"):
                 store.delete_job(job["id"]); st.rerun()
+
+            st.divider()
+
+            # --- tasks, grouped by tag ---
+            if tasks:
+                by_tag = {}
+                for t in tasks:
+                    by_tag.setdefault(t["tag"] or "untagged", []).append(t)
+                for tag in sorted(by_tag.keys()):
+                    if len(by_tag) > 1 or tag != "untagged":
+                        st.markdown(f"**{tag}**")
+                    for t in by_tag[tag]:
+                        cols = st.columns([5, 1.2, 0.6])
+                        cols[0].write(f"• {t['text']}")
+                        new_tag = cols[1].text_input("tag", value=t["tag"] or "",
+                                                     key=f"tag{t['id']}", label_visibility="collapsed",
+                                                     placeholder="tag")
+                        if new_tag != (t["tag"] or ""):
+                            store.set_task_tag(t["id"], new_tag); st.rerun()
+                        if cols[2].button("✕", key=f"deltask{t['id']}"):
+                            store.delete_task(t["id"]); st.rerun()
+
+            # --- add tasks, scoped to THIS job ---
+            with st.form(f"addtask{job['id']}", clear_on_submit=True):
+                new_tasks = st.text_area("Add accomplishments (one per line)", key=f"newtask{job['id']}")
+                new_tag = st.text_input("Tag for these (optional, e.g. leadership, IAM)", key=f"newtag{job['id']}")
+                if st.form_submit_button("Add") and new_tasks.strip():
+                    for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
+                        store.add_task(job["id"], ln, new_tag.strip())
+                    st.rerun()
 
     with st.form("add_job", clear_on_submit=True):
         st.write("Add a job")
@@ -179,31 +212,6 @@ with profile_tab:
         if st.form_submit_button("Add job") and employer:
             store.add_job(employer, role, start, end, location); st.rerun()
 
-# ================= Task Bank =================
-with bank_tab:
-    st.subheader("Accomplishment bank")
-    jobs = store.list_jobs()
-    if not jobs:
-        st.info("Add a job under the Profile tab first.")
-    else:
-        labels = {f"{j['employer']} — {j['role']}": j["id"] for j in jobs}
-        with st.form("add_task", clear_on_submit=True):
-            choice = st.selectbox("Which job?", list(labels.keys()))
-            text = st.text_area("What did you do? (one accomplishment per line)")
-            if st.form_submit_button("Add task") and text:
-                for ln in [x.strip() for x in text.split("\n") if x.strip()]:
-                    store.add_task(labels[choice], ln)
-                st.rerun()
-
-        for j in jobs:
-            tasks = store.list_tasks(j["id"])
-            if tasks:
-                st.markdown(f"**{j['employer']} — {j['role']}**")
-                for t in tasks:
-                    cols = st.columns([6, 1])
-                    cols[0].write(f"• {t['text']}")
-                    if cols[1].button("Delete", key=f"deltask{t['id']}"):
-                        store.delete_task(t["id"]); st.rerun()
 
 # ================= Tailor (work one job, in order) =================
 with tailor_tab:

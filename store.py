@@ -45,8 +45,11 @@ def delete_job(job_id):
     _write("DELETE FROM jobs WHERE id = ?;", (job_id,))
 
 # --- task bank ---
-def add_task(job_id, text):
-    return _write("INSERT INTO tasks (job_id, text) VALUES (?, ?);", (job_id, text))
+def add_task(job_id, text, tag=""):
+    return _write("INSERT INTO tasks (job_id, text, tag) VALUES (?, ?, ?);", (job_id, text, tag))
+
+def set_task_tag(task_id, tag):
+    _write("UPDATE tasks SET tag = ? WHERE id = ?;", (tag, task_id))
 
 def list_tasks(job_id=None):
     if job_id is None:
