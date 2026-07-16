@@ -26,6 +26,7 @@ def build_system():
     rules += (
         "\n\nOUTPUT: Markdown only — no '---' lines, no commentary. Start with a 2-3 line "
         "'## Summary'. Then, for each relevant job, output a line containing ONLY that job's tag "
+        "Output jobs in reverse-chronological order — most recent first — regardless of relevance. "
         "exactly as given (e.g. '[[JOB:3]]') on its own line, followed by that job's bullets "
         "starting with '- '. Do NOT write company names, job titles, or dates yourself — only the "
         "[[JOB:id]] tag and the bullets. Skip jobs not relevant to this ad."

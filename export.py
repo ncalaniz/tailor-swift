@@ -124,6 +124,11 @@ def _section_header(pdf, title):
     pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
     pdf.ln(2)
 
+def _year_of(text):
+    """Pull a 4-digit year out of a date string like 'Apr 2023' (0 if none)."""
+    m = re.search(r"(\d{4})", text or "")
+    return int(m.group(1)) if m else 0
+
 def build_pdf(tailored_text):
     """Turn the tailored text into a PDF, returned as bytes."""
     pdf = FPDF()
@@ -140,34 +145,42 @@ def build_pdf(tailored_text):
             pdf.cell(0, 5, _ascii(part), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
-    drew_experience = False
-
+    # --- pass 1: split the text into preamble (summary) and per-job sections ---
+    preamble = []          # lines before the first job tag
+    sections = []          # list of (job_id, [bullet lines])
+    current = None         # the bullet list of the job we're inside
     for raw in tailored_text.split("\n"):
         line = raw.strip()
-        if not line:
-            pdf.ln(2); continue
-        if _is_rule(line):
+        if not line or _is_rule(line):
             continue
         job_id = _job_tag(line)
         if job_id is not None:
-            title, dates, loc = _job_heading_parts(job_id)
-            if title:
-                if not drew_experience:
-                    pdf.ln(2)
-                    _section_header(pdf, "Experience")
-                    drew_experience = True
-                pdf.ln(1)
-                pdf.set_font("Helvetica", "B", 13)
-                title_w = pdf.get_string_width(_ascii(title)) + 2
-                pdf.cell(title_w, 7, _ascii(title))
-                pdf.set_font("Helvetica", "", 11)
-                pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
-                if loc:
-                    pdf.set_font("Helvetica", "I", 10)
-                    pdf.cell(0, 5, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")
+            current = []
+            sections.append((job_id, current))
             continue
-        if line.startswith("### "):   # fallback if a heading slips through
-            pdf.set_font("Helvetica", "B", 13); pdf.multi_cell(0, 7, _ascii(line[4:]), new_x="LMARGIN", new_y="NEXT")
+        if current is None:
+            preamble.append(line)
+        else:
+            current.append(line)
+
+    # --- sort sections most-recent-first by the job's dates ---
+    def _sort_key(sec):
+        job_id, _ = sec
+        for j in store.list_jobs():
+            if j["id"] == job_id:
+                end = (j["end_date"] or "").strip().lower()
+                start = (j["start_date"] or "").strip()
+                if not end or end == "present":
+                    return (0, "")            # current job: always first
+                return (1, _year_of(end) * -1)  # then by end year, newest first
+        return (2, 0)
+    sections.sort(key=_sort_key)
+
+    # --- pass 2: draw ---
+    def _draw_line(line):
+        if line.startswith("### "):
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.multi_cell(0, 7, _ascii(line[4:]), new_x="LMARGIN", new_y="NEXT")
         elif line.startswith("## "):
             _section_header(pdf, line[3:])
         elif line.startswith("- ") or line.startswith("* "):
@@ -177,7 +190,38 @@ def build_pdf(tailored_text):
             pdf.set_font("Helvetica", "", 11)
             pdf.multi_cell(0, 5.5, _ascii(line), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1.5)
-        
+
+    for line in preamble:
+        _draw_line(line)
+
+    drew_experience = False
+    for job_id, bullets in sections:
+        title, dates, loc = _job_heading_parts(job_id)
+        if not title:
+            continue
+        if not drew_experience:
+            pdf.ln(2)
+            _section_header(pdf, "Experience")
+            drew_experience = True
+        pdf.set_font("Helvetica", "", 11)
+        dates_w = pdf.get_string_width(_ascii(dates)) + 4
+        pdf.set_font("Helvetica", "B", 13)
+        title_txt = _ascii(title)
+        usable = pdf.w - pdf.l_margin - pdf.r_margin
+        max_title_w = usable - dates_w
+        while pdf.get_string_width(title_txt) + 2 > max_title_w and len(title_txt) > 10:
+            title_txt = title_txt[:-2].rstrip() + "..."
+        title_w = pdf.get_string_width(title_txt) + 2
+        pdf.cell(title_w, 7, title_txt)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
+        if loc:
+            pdf.set_font("Helvetica", "I", 10)
+            pdf.cell(0, 5, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")
+        for line in bullets:
+            _draw_line(line)
+
+    # --- education (unchanged) ---
     edu = _education()
     if edu:
         pdf.ln(3)
@@ -188,8 +232,7 @@ def build_pdf(tailored_text):
             loc = e.get("location", "")
             year = e.get("year", "")
             pdf.set_font("Helvetica", "B", 12)
-            line1 = school + (f"   ({loc})" if loc else "")
-            pdf.multi_cell(0, 6, _ascii(line1), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 6, _ascii(school + (f"   ({loc})" if loc else "")), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 11)
             line2 = degree + (f"   {year}" if year else "")
             if line2.strip():
