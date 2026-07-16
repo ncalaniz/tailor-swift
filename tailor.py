@@ -62,3 +62,23 @@ def analyze_match(job_ad):
     raw = ask_claude(prompt, system=ANALYZE_SYS, model="claude-sonnet-4-6", max_tokens=800)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()   # strip any fences
     return json.loads(clean)   # turn the JSON text into a Python dict
+
+BRAINDUMP_SYS = (
+    "You turn a person's messy, plain-English description of work they did into clean, separate "
+    "resume task entries. STRICT HONESTY: only rephrase what they actually wrote — never inflate, "
+    "never invent metrics, employers, or skills they didn't state. Split distinct accomplishments "
+    "into separate entries. Start each with a strong action verb. Keep any numbers they gave "
+    "exactly as given. Respond with ONLY a valid JSON array of strings, no fences, no commentary. "
+    'Example: ["Centralized identity and access management for operations, consolidating '
+    'permissioning under a single owned function", "Built a Jira workflow for structured '
+    'access-change requests"]'
+)
+
+def braindump_to_tasks(dump_text):
+    """Turn a messy description into a list of clean task strings."""
+    raw = ask_claude(dump_text, system=BRAINDUMP_SYS, model="claude-sonnet-4-6", max_tokens=1000)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()
+    result = json.loads(clean)
+    if not isinstance(result, list):
+        raise ValueError("Expected a list of tasks")
+    return [str(t).strip() for t in result if str(t).strip()]

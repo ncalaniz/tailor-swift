@@ -3,7 +3,7 @@
 import streamlit as st
 import json
 import store
-from tailor import tailor_resume, analyze_match
+from tailor import braindump_to_tasks, tailor_resume, analyze_match
 from export import build_docx, build_pdf
 import re
 
@@ -202,6 +202,41 @@ with profile_tab:
                     for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
+                    st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
+                    st.caption("Write in plain words — a paragraph, a story, however it comes out. "
+                            "It gets split into separate polished entries that you review before "
+                            "saving. Only what you actually say gets used — nothing is invented.")
+                    dump = st.text_area("What did you do at this job?", key=f"dump{job['id']}",
+                                        placeholder="e.g. I ran the team that owned provisioning...")
+                    if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
+                        if dump.strip():
+                            with st.spinner("Turning your words into task entries..."):
+                                try:
+                                    st.session_state[f"drafts{job['id']}"] = braindump_to_tasks(dump)
+                                except Exception as e:
+                                    st.error(f"Couldn't parse that — try again. ({e})")
+                        else:
+                            st.warning("Write something first.")
+
+                    drafts = st.session_state.get(f"drafts{job['id']}", [])
+                    if drafts:
+                        st.markdown("**Review before saving** — edit anything, untick what's wrong:")
+                        keep, edited = [], []
+                        for i, d in enumerate(drafts):
+                            cols = st.columns([0.5, 6])
+                            k = cols[0].checkbox(" ", value=True, key=f"keep{job['id']}_{i}",
+                                                label_visibility="collapsed")
+                            e = cols[1].text_area(" ", value=d, key=f"edit{job['id']}_{i}",
+                                                label_visibility="collapsed", height=68)
+                            keep.append(k); edited.append(e)
+                        if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
+                            n = 0
+                            for k, e in zip(keep, edited):
+                                if k and e.strip():
+                                    store.add_task(job["id"], e.strip()); n += 1
+                            st.session_state.pop(f"drafts{job['id']}", None)
+                            st.success(f"Saved {n} tasks."); st.rerun()
+                    
 
     with st.form("add_job", clear_on_submit=True):
         st.write("Add a job")
