@@ -1,3 +1,4 @@
+# CHECKPOINT-ALPHA
 # app.py — a local visual interface for your resume studio.
 # Run it with:  streamlit run app.py
 import streamlit as st
@@ -214,9 +215,9 @@ with profile_tab:
                        "It gets split into separate polished entries that you review before "
                        "saving. Only what you actually say gets used — nothing is invented.")
 
-            if st.session_state.pop(f"cleardump{job['id']}", False):
-                st.session_state.pop(f"dump{job['id']}", None)
-            dump = st.text_area("What did you do at this job?", key=f"dump{job['id']}",
+            dump_counter = st.session_state.get(f"dumpgen{job['id']}", 0)
+            dump = st.text_area("What did you do at this job?",
+                                key=f"dump{job['id']}_{dump_counter}",
                                 placeholder="e.g. I ran the team that owned provisioning...")
             if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
                 st.session_state["open_job"] = job["id"]
@@ -247,7 +248,7 @@ with profile_tab:
                         if k and e.strip():
                             store.add_task(job["id"], e.strip()); n += 1
                     st.session_state.pop(f"drafts{job['id']}", None)
-                    st.session_state[f"cleardump{job['id']}"] = True
+                    st.session_state[f"dumpgen{job['id']}"] = dump_counter + 1
                     st.success(f"Saved {n} tasks."); st.rerun()
 
     with st.form("add_job", clear_on_submit=True):
