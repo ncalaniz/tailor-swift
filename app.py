@@ -208,10 +208,12 @@ with profile_tab:
                     for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
+
             st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
             st.caption("Write in plain words — a paragraph, a story, however it comes out. "
-                    "It gets split into separate polished entries that you review before "
-                    "saving. Only what you actually say gets used — nothing is invented.")
+                       "It gets split into separate polished entries that you review before "
+                       "saving. Only what you actually say gets used — nothing is invented.")
+
             if st.session_state.pop(f"cleardump{job['id']}", False):
                 st.session_state.pop(f"dump{job['id']}", None)
             dump = st.text_area("What did you do at this job?", key=f"dump{job['id']}",
@@ -236,7 +238,7 @@ with profile_tab:
                     k = cols[0].checkbox(" ", value=True, key=f"keep{job['id']}_{i}",
                                         label_visibility="collapsed")
                     e = cols[1].text_area(" ", value=d, key=f"edit{job['id']}_{i}",
-                                        label_visibility="collapsed", height=68)
+                                          label_visibility="collapsed", height=68)
                     keep.append(k); edited.append(e)
                 if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
                     st.session_state["open_job"] = job["id"]
@@ -247,7 +249,6 @@ with profile_tab:
                     st.session_state.pop(f"drafts{job['id']}", None)
                     st.session_state[f"cleardump{job['id']}"] = True
                     st.success(f"Saved {n} tasks."); st.rerun()
-                    
 
     with st.form("add_job", clear_on_submit=True):
         st.write("Add a job")
