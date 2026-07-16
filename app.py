@@ -71,13 +71,22 @@ def style_controls():
             st.success("Saved.")
 
 
-st.set_page_config(page_title="Resume Studio", page_icon="📄", layout="wide")
-st.title("Resume Studio")
-st.caption("Tailor your resume to any job — built on your real experience.")
+st.set_page_config(page_title="Tailor Swift", page_icon="🧵", layout="wide")
+_name = store.get_setting("name", "").strip()
+_first = _name.split()[0] if _name else ""
+st.title(f"Please Hire {_first}" if _first else "Please Hire Me")
+st.caption("Tailor Swift — resumes built on your real experience.")
 
-setup_tab, profile_tab, bank_tab, tailor_tab, apps_tab = st.tabs(
-    ["Setup", "Profile", "Task Bank", "Tailor", "Applications"]
-)
+_setup_done = bool(_name and store.get_setting("base_resume", "").strip())
+if _setup_done:
+    tailor_tab, apps_tab, bank_tab, profile_tab, setup_tab = st.tabs(
+        ["Tailor", "Applications", "Task Bank", "Profile", "Setup"]
+    )
+else:
+    st.info("👋 New here? Start in the Setup tab, then add your base resume and work history under Profile.")
+    setup_tab, profile_tab, bank_tab, tailor_tab, apps_tab = st.tabs(
+        ["Setup", "Profile", "Task Bank", "Tailor", "Applications"]
+    )
 
 # ================= Setup (contact details only) =================
 with setup_tab:
