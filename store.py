@@ -78,6 +78,9 @@ def set_application_status(app_id, status):
 def set_application_notes(app_id, notes):
     _write("UPDATE applications SET notes = ? WHERE id = ?;", (notes, app_id))
 
+def set_application_date(app_id, date_applied):
+    _write("UPDATE applications SET date_applied = ? WHERE id = ?;", (date_applied, app_id))    
+
 def save_tailored_result(app_id, generated):
     _write("UPDATE applications SET generated = ? WHERE id = ?;", (generated, app_id))
 

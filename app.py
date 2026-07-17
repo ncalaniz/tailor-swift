@@ -3,6 +3,7 @@
 # Run it with:  streamlit run app.py
 import streamlit as st
 import json
+import datetime
 import store
 from tailor import braindump_to_tasks, tailor_resume, analyze_match
 from export import build_docx, build_pdf
@@ -29,6 +30,12 @@ def _parse_list(text):
     except Exception:
         return []
 
+def _parse_date(text):
+    """Turn stored ISO text ('2026-07-17') into a date object. Empty/bad -> None."""
+    try:
+        return datetime.date.fromisoformat(text) if text else None
+    except Exception:
+        return None
 
 def _get_app(app_id):
     """Fetch a single application by id from the stored list."""
@@ -350,6 +357,7 @@ with tailor_tab:
             with st.spinner("Writing your tailored resume..."):
                 result = tailor_resume(a["ad_text"])
                 store.save_tailored_result(a["id"], result)
+            st.session_state[f"edver{a['id']}"] = st.session_state.get(f"edver{a['id']}", 0) + 1
             st.rerun()
         if d[1].button("Not a fit — skip"):
             store.set_application_status(a["id"], "Passed")
@@ -358,16 +366,38 @@ with tailor_tab:
 
         # Step 4 — draft + downloads
         if a["generated"]:
-            st.markdown("### 4. Your tailored resume")
-            st.markdown(_preview(a["generated"]))
+            st.markdown("### 4. Review and edit your tailored resume")
+            st.caption("Read every line before it becomes a PDF. Verify every number against "
+                       "what actually happened. Leave the [[JOB:1]] tags alone — those pull your "
+                       "real employer, title, and dates from the database at export.")
+
+            _edver = st.session_state.get(f"edver{a['id']}", 0)
+            draft = st.text_area("Tailored draft", value=a["generated"], height=420,
+                                 key=f"ed{a['id']}_{_edver}", label_visibility="collapsed")
+
+            s = st.columns([1, 3])
+            if s[0].button("Save edits"):
+                store.save_tailored_result(a["id"], draft)
+                st.session_state[f"saved{a['id']}"] = True
+                st.rerun()
+            if st.session_state.pop(f"saved{a['id']}", False):
+                s[1].success("Saved.")
+            if draft != a["generated"]:
+                s[1].caption("⚠ Unsaved edits — downloads below use what's in the box.")
+
+            st.markdown("**Preview**")
+            st.markdown(_preview(draft))
+
             fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
             dl = st.columns(2)
-            dl[0].download_button("⬇ Word (.docx)", data=build_docx(a["generated"]),
+            dl[0].download_button("⬇ Word (.docx)", data=build_docx(draft),
                                   file_name=fname + ".docx", mime=DOCX_MIME, key="dl_active")
-            dl[1].download_button("⬇ PDF", data=build_pdf(a["generated"]),
+            dl[1].download_button("⬇ PDF", data=build_pdf(draft),
                                   file_name=fname + ".pdf", mime=PDF_MIME, key="pdf_active")
             if st.button("Mark as applied"):
+                store.save_tailored_result(a["id"], draft)
                 store.set_application_status(a["id"], "Applied")
+                store.set_application_date(a["id"], datetime.date.today().isoformat())
                 st.success("Marked as applied — it's saved in the Applications tab.")
 
 # ================= Applications (the tracker) =================
@@ -380,12 +410,26 @@ with apps_tab:
     for i, a in enumerate(apps):
         n = total - i
         score = f" · match {a['match_score']}" if a["match_score"] is not None else ""
-        header = f"#{n}  {a['company'] or '—'} — {a['title'] or ''}   [{a['status']}]{score}"
+        when = f" · applied {a['date_applied']}" if a["date_applied"] else ""
+        header = f"#{n}  {a['company'] or '—'} — {a['title'] or ''}   [{a['status']}]{score}{when}"
         with st.expander(header):
+            c = st.columns(2)
             idx = STATUSES.index(a["status"]) if a["status"] in STATUSES else 0
-            new_status = st.selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}")
+            new_status = c[0].selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}")
             if new_status != a["status"]:
-                store.set_application_status(a["id"], new_status); st.rerun()
+                store.set_application_status(a["id"], new_status)
+                if new_status == "Applied" and not a["date_applied"]:
+                    store.set_application_date(a["id"], datetime.date.today().isoformat())
+                    st.session_state[f"dtver{a['id']}"] = st.session_state.get(f"dtver{a['id']}", 0) + 1
+                st.rerun()
+
+            _dtver = st.session_state.get(f"dtver{a['id']}", 0)
+            new_date = c[1].date_input("Date applied", value=_parse_date(a["date_applied"]),
+                                       format="YYYY-MM-DD", key=f"dt{a['id']}_{_dtver}")
+            new_date_text = new_date.isoformat() if new_date else ""
+            if new_date_text != (a["date_applied"] or ""):
+                store.set_application_date(a["id"], new_date_text)
+                st.rerun()
 
             if st.button("Open in Tailor tab", key=f"open{a['id']}"):
                 st.session_state["active_app"] = a["id"]
