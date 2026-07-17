@@ -376,9 +376,11 @@ with apps_tab:
     apps = store.list_applications()
     if not apps:
         st.info("No applications yet. Start one in the Tailor tab.")
-    for a in apps:
+    total = len(apps)
+    for i, a in enumerate(apps):
+        n = total - i
         score = f" · match {a['match_score']}" if a["match_score"] is not None else ""
-        header = f"{a['company'] or '—'} — {a['title'] or ''}   [{a['status']}]{score}"
+        header = f"#{n}  {a['company'] or '—'} — {a['title'] or ''}   [{a['status']}]{score}"
         with st.expander(header):
             idx = STATUSES.index(a["status"]) if a["status"] in STATUSES else 0
             new_status = st.selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}")
