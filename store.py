@@ -51,6 +51,9 @@ def add_task(job_id, text, tag=""):
 def set_task_tag(task_id, tag):
     _write("UPDATE tasks SET tag = ? WHERE id = ?;", (tag, task_id))
 
+def update_task(task_id, text):
+    _write("UPDATE tasks SET text = ? WHERE id = ?;", (text, task_id))
+
 def list_tasks(job_id=None):
     if job_id is None:
         return _read("SELECT * FROM tasks ORDER BY id;")

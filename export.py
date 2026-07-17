@@ -1,6 +1,5 @@
 # export.py — turns tailored resume text into downloadable Word (.docx) and PDF files.
 import io
-from turtle import st
 import docx                 # installed as "python-docx"
 from fpdf import FPDF       # installed as "fpdf2"
 import store
@@ -23,7 +22,7 @@ def _ascii(s):
     for bad, good in [("—", "-"), ("–", "-"), ("’", "'"), ("‘", "'"),
                       ("“", '"'), ("”", '"'), ("•", "-"), ("…", "...")]:
         s = s.replace(bad, good)
-    return s
+    return s.encode("latin-1", "replace").decode("latin-1")
 
 def _norm(s):
     """Lowercase + collapse whitespace, for tolerant matching."""
@@ -209,8 +208,10 @@ def build_pdf(tailored_text):
         title_txt = _ascii(title)
         usable = pdf.w - pdf.l_margin - pdf.r_margin
         max_title_w = usable - dates_w
-        while pdf.get_string_width(title_txt) + 2 > max_title_w and len(title_txt) > 10:
-            title_txt = title_txt[:-2].rstrip() + "..."
+        if pdf.get_string_width(title_txt) + 2 > max_title_w:
+            while len(title_txt) > 10 and pdf.get_string_width(title_txt + "...") + 2 > max_title_w:
+                title_txt = title_txt[:-1].rstrip()
+            title_txt += "..."
         title_w = pdf.get_string_width(title_txt) + 2
         pdf.cell(title_w, 7, title_txt)
         pdf.set_font("Helvetica", "", 11)

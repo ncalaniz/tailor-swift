@@ -16,6 +16,15 @@ def build_system():
         "logged tasks, write tailored resume content for the job ad. You may reword, reorder, "
         "and emphasize real experience to match the ad's language, but NEVER invent employers, "
         "titles, dates, metrics, or skills the candidate does not have.\n\n"
+        "PRESERVE ATTRIBUTION — as important as not inventing facts. Keep who did the work "
+        "exactly as the source states it. If the source says the candidate's team did something, "
+        "the bullet must say so ('Led the team that...', 'Through my team...') — never promote "
+        "team work to first-person individual work. If the source says the candidate was a "
+        "member of or contributor to something, never upgrade that to founder, owner, or sole "
+        "leader. Never add adverbs the source does not support ('directly', 'personally', "
+        "'single-handedly', 'hands-on'). Never add qualifiers that change what a number means "
+        "(if the source says 'quarterly spend', do not write 'quarterly comp spend'). When in "
+        "doubt about who did something or what a number counts, use the weaker claim.\n\n"
         f"STYLE: tone = {tone}; bullet length = {length}; up to {maxb} bullets per job. "
         "Start every bullet with a strong action verb. "
     )
@@ -24,12 +33,21 @@ def build_system():
     if custom:
         rules += f"Extra instructions: {custom} "
     rules += (
+        "\n\nSUMMARY RULES: the summary is the only prose not anchored to a specific logged "
+        "task, so it is where false claims hide. Every factual claim in it — years of "
+        "experience, industries, company stage, scale, scope — must be derivable from the "
+        "candidate's stored jobs and tasks. Do NOT state a total years-of-experience number. "
+        "Do NOT claim industry or company-stage experience (e.g. 'high-growth SaaS', "
+        "'enterprise', 'startup') unless the logged data shows it. No unfalsifiable filler: "
+        "never write 'proven track record', 'results-driven', 'seasoned', 'passionate about', "
+        "'demonstrated ability', 'track record of success'. If a claim cannot be checked "
+        "against a logged task, cut it."
         "\n\nOUTPUT: Markdown only — no '---' lines, no commentary. Start with a 2-3 line "
-        "'## Summary'. Then, for each relevant job, output a line containing ONLY that job's tag "
-        "Output jobs in reverse-chronological order — most recent first — regardless of relevance. "
-        "exactly as given (e.g. '[[JOB:3]]') on its own line, followed by that job's bullets "
-        "starting with '- '. Do NOT write company names, job titles, or dates yourself — only the "
-        "[[JOB:id]] tag and the bullets. Skip jobs not relevant to this ad."
+        "'## Summary'. Then, for each relevant job, output a line containing ONLY that job's "
+        "tag exactly as given (e.g. '[[JOB:3]]') on its own line, followed by that job's "
+        "bullets starting with '- '. Output jobs in reverse-chronological order — most recent "
+        "first — regardless of relevance. Do NOT write company names, job titles, or dates "
+        "yourself — only the [[JOB:id]] tag and the bullets. Skip jobs not relevant to this ad."
     )
     return rules
 
@@ -66,7 +84,13 @@ def analyze_match(job_ad):
 BRAINDUMP_SYS = (
     "You turn a person's messy, plain-English description of work they did into clean, separate "
     "resume task entries. STRICT HONESTY: only rephrase what they actually wrote — never inflate, "
-    "never invent metrics, employers, or skills they didn't state. Split distinct accomplishments "
+    "never invent metrics, employers, or skills they didn't state. "
+    "PRESERVE ATTRIBUTION: keep who did the work exactly as stated. If they say their team did "
+    "something, the entry must say so ('Led the team that...') — never rewrite team work as "
+    "their own hands-on work. If they say they were a member or contributor, never upgrade it "
+    "to founder or owner. Never add adverbs they didn't use ('directly', 'personally', "
+    "'hands-on'). When unsure who did something, use the weaker claim. "
+    "Split distinct accomplishments "
     "into separate entries. Start each with a strong action verb. Keep any numbers they gave "
     "exactly as given. Respond with ONLY a valid JSON array of strings, no fences, no commentary. "
     'Example: ["Centralized identity and access management for operations, consolidating '

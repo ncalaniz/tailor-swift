@@ -167,7 +167,7 @@ with profile_tab:
     for job in store.list_jobs():
         tasks = store.list_tasks(job["id"])
         with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)",
-                         expanded=(st.session_state.get("open_job") == job["id"])):
+                         expanded=(job["id"] in st.session_state.get("open_jobs", set()))):
             # --- job details ---
             c = st.columns(5)
             employer = c[0].text_input("Employer", value=job["employer"] or "", key=f"emp{job['id']}")
@@ -177,12 +177,12 @@ with profile_tab:
             loc = c[4].text_input("Location", value=job["location"] or "", key=f"loc{job['id']}")
             b = st.columns(2)
             if b[0].button("Save changes", key=f"savejob{job['id']}"):
-                st.session_state["open_job"] = job["id"]
+                st.session_state.setdefault("open_jobs", set()).add(job["id"])
                 store.update_job(job["id"], employer, role, start, end, loc)
                 st.success("Updated."); st.rerun()
             if b[1].button("Delete job (and its tasks)", key=f"deljob{job['id']}"):
                 store.delete_job(job["id"])
-                st.session_state.pop("open_job", None)
+                st.session_state.setdefault("open_jobs", set()).discard(job["id"])
                 st.rerun()
 
             st.divider()
@@ -197,14 +197,22 @@ with profile_tab:
                         st.markdown(f"**{tag}**")
                     for t in by_tag[tag]:
                         cols = st.columns([5, 1.2, 0.6])
-                        cols[0].write(f"• {t['text']}")
+                        new_text = cols[0].text_area("task", value=t["text"],
+                                                     key=f"task{t['id']}", label_visibility="collapsed",
+                                                     height=68)
+                        if not new_text.strip():
+                            cols[0].caption("⚠ Can't be empty — use ✕ to delete instead.")
+                        elif new_text.strip() != t["text"]:
+                            st.session_state.setdefault("open_jobs", set()).add(job["id"])
+                            store.update_task(t["id"], new_text.strip()); st.rerun()
                         new_tag = cols[1].text_input("tag", value=t["tag"] or "",
                                                      key=f"tag{t['id']}", label_visibility="collapsed",
                                                      placeholder="tag")
                         if new_tag != (t["tag"] or ""):
+                            st.session_state.setdefault("open_jobs", set()).add(job["id"])
                             store.set_task_tag(t["id"], new_tag); st.rerun()
                         if cols[2].button("✕", key=f"deltask{t['id']}"):
-                            st.session_state["open_job"] = job["id"]
+                            st.session_state.setdefault("open_jobs", set()).add(job["id"])
                             store.delete_task(t["id"]); st.rerun()
 
             # --- add tasks, scoped to THIS job ---
@@ -212,7 +220,7 @@ with profile_tab:
                 new_tasks = st.text_area("Add accomplishments (one per line)", key=f"newtask{job['id']}")
                 new_tag = st.text_input("Tag for these (optional, e.g. leadership, IAM)", key=f"newtag{job['id']}")
                 if st.form_submit_button("Add") and new_tasks.strip():
-                    st.session_state["open_job"] = job["id"]
+                    st.session_state.setdefault("open_jobs", set()).add(job["id"])
                     for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
@@ -227,7 +235,7 @@ with profile_tab:
                                 key=f"dump{job['id']}_{dump_counter}",
                                 placeholder="e.g. I ran the team that owned provisioning...")
             if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
-                st.session_state["open_job"] = job["id"]
+                st.session_state.setdefault("open_jobs", set()).add(job["id"])
                 if dump.strip():
                     with st.spinner("Turning your words into task entries..."):
                         try:
@@ -249,7 +257,7 @@ with profile_tab:
                                           label_visibility="collapsed", height=68)
                     keep.append(k); edited.append(e)
                 if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
-                    st.session_state["open_job"] = job["id"]
+                    st.session_state.setdefault("open_jobs", set()).add(job["id"])
                     n = 0
                     for k, e in zip(keep, edited):
                         if k and e.strip():
