@@ -74,6 +74,11 @@ def build_docx(tailored_text):
         else:
             doc.add_paragraph(line)
 
+    skills = _skills()
+    if skills:
+        doc.add_heading("Skills & Technologies", level=1)
+        doc.add_paragraph(", ".join(skills))
+
     edu = _education()
     if edu:
         doc.add_heading("Education", level=1)
@@ -112,6 +117,13 @@ def _education():
     """Return the stored education list (or empty)."""
     try:
         return json.loads(store.get_setting("education", "[]") or "[]")
+    except Exception:
+        return []
+
+def _skills():
+    """Return the stored skills list (or empty)."""
+    try:
+        return json.loads(store.get_setting("skills", "[]") or "[]")
     except Exception:
         return []
 
@@ -225,6 +237,14 @@ def build_pdf(tailored_text):
             pdf.cell(0, 5, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")
         for line in bullets:
             _draw_line(line)
+
+    # --- skills ---
+    skills = _skills()
+    if skills:
+        pdf.ln(3)
+        _section_header(pdf, "Skills & Technologies")
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 5.5, _ascii(", ".join(skills)), new_x="LMARGIN", new_y="NEXT", align="L")
 
     # --- education (unchanged) ---
     edu = _education()

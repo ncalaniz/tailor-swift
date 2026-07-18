@@ -158,6 +158,18 @@ with setup_tab:
             store.set_setting("education", json.dumps(edu))
             st.rerun()
 
+    st.divider()
+    st.subheader("Skills & technologies")
+    st.caption("Rendered as its own section on your resume. One per line.")
+    skills = json.loads(store.get_setting("skills", "[]") or "[]")
+    skills_text = st.text_area("Skills", value="\n".join(skills), height=120,
+                               label_visibility="collapsed",
+                               placeholder="e.g. Salesforce\nSQL\nXactly\nHex\nJira")
+    if st.button("Save skills"):
+        new_skills = [s.strip() for s in skills_text.split("\n") if s.strip()]
+        store.set_setting("skills", json.dumps(new_skills))
+        st.success("Saved.")
+
 # ================= Profile (base resume + work history) =================
 with profile_tab:
     _bank_flags = check_bank()
