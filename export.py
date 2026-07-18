@@ -184,10 +184,10 @@ def build_pdf(tailored_text):
             _section_header(pdf, line[3:])
         elif line.startswith("- ") or line.startswith("* "):
             pdf.set_font("Helvetica", "", 11)
-            pdf.multi_cell(0, 5.5, chr(149) + "  " + _ascii(line[2:]), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5.5, chr(149) + " " + _ascii(line[2:]), new_x="LMARGIN", new_y="NEXT", align="L")
         else:
             pdf.set_font("Helvetica", "", 11)
-            pdf.multi_cell(0, 5.5, _ascii(line), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5.5, _ascii(line), new_x="LMARGIN", new_y="NEXT", align="L")
         pdf.ln(1.5)
 
     for line in preamble:
@@ -208,14 +208,18 @@ def build_pdf(tailored_text):
         title_txt = _ascii(title)
         usable = pdf.w - pdf.l_margin - pdf.r_margin
         max_title_w = usable - dates_w
-        if pdf.get_string_width(title_txt) + 2 > max_title_w:
-            while len(title_txt) > 10 and pdf.get_string_width(title_txt + "...") + 2 > max_title_w:
-                title_txt = title_txt[:-1].rstrip()
-            title_txt += "..."
-        title_w = pdf.get_string_width(title_txt) + 2
-        pdf.cell(title_w, 7, title_txt)
+        if pdf.get_string_width(title_txt) + 2 <= max_title_w:
+            # fits on one line: title left, dates right
+            title_w = pdf.get_string_width(title_txt) + 2
+            pdf.cell(title_w, 7, title_txt)
+            pdf.set_font("Helvetica", "", 11)
+            pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
+        else:
+            # too long to share a line: let the title wrap, put dates underneath
+            pdf.multi_cell(0, 7, title_txt, new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 11)
+            pdf.cell(0, 6, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
         if loc:
             pdf.set_font("Helvetica", "I", 10)
             pdf.cell(0, 5, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")

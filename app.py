@@ -7,6 +7,7 @@ import datetime
 import store
 from tailor import braindump_to_tasks, tailor_resume, analyze_match
 from export import build_docx, build_pdf
+from lint import check_bank
 import re
 
 def _preview(text):
@@ -17,6 +18,10 @@ def _preview(text):
         h = title + (f" ({dates})" if dates else "")
         return f"### {h}" if h else ""
     return re.sub(r"\[\[JOB:(\d+)\]\]", repl, text)
+
+def md_safe(text):
+    """Escape $ so st.markdown doesn't swallow money figures as LaTeX math."""
+    return (text or "").replace("$", "\\$")
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME = "application/pdf"
@@ -155,6 +160,13 @@ with setup_tab:
 
 # ================= Profile (base resume + work history) =================
 with profile_tab:
+    _bank_flags = check_bank()
+    if _bank_flags:
+        with st.expander(f"⚠ Bank check — {len(_bank_flags)} thing(s) worth a look"):
+            st.caption("Deterministic checks on your stored data. Flags only — nothing is changed.")
+            for _sev, _msg in _bank_flags:
+                (st.warning if _sev == "warn" else st.info)(_msg)
+
     st.subheader("Base resume")
     resume_text = st.text_area("Base resume", value=store.get_setting("base_resume", ""),
                                height=220, label_visibility="collapsed")
@@ -321,13 +333,13 @@ with tailor_tab:
             matched, missing, gaps = (_parse_list(a["matched"]),
                                       _parse_list(a["missing"]), _parse_list(a["gaps"]))
             if matched:
-                st.markdown("**Keywords you already hit:** " + ", ".join(matched))
+                st.markdown("**Keywords you already hit:** " + md_safe(", ".join(matched)))
             if missing:
-                st.markdown("**Missing from your resume:** " + ", ".join(missing))
+                st.markdown("**Missing from your resume:** " + md_safe(", ".join(missing)))
             if gaps:
                 st.markdown("**Real gaps to consider:**")
                 for g in gaps:
-                    st.markdown(f"- {g}")
+                    st.markdown(f"- {md_safe(g)}")
             if st.button("Re-analyze fit (after adding experience)"):
                 with st.spinner("Re-analyzing..."):
                     if _run_analysis(a["id"], a["ad_text"]):
@@ -393,8 +405,19 @@ with tailor_tab:
             if draft != a["generated"]:
                 s[1].caption("⚠ Unsaved edits — downloads below use what's in the box.")
 
+            # --- P7: report which jobs were included vs silently skipped ---
+            _inc_ids = {int(m) for m in re.findall(r"\[\[JOB:(\d+)\]\]", draft)}
+            _jobs = store.list_jobs()
+            _lbl = lambda j: f"{j['employer']} — {j['role']}" if j["role"] else j["employer"]
+            _in = [_lbl(j) for j in _jobs if j["id"] in _inc_ids]
+            _out = [_lbl(j) for j in _jobs if j["id"] not in _inc_ids]
+            st.caption("In this resume: " + (", ".join(_in) if _in else "none"))
+            if _out:
+                st.info("Left out of this resume: " + ", ".join(_out) + ". If any of those "
+                        "belong here, they were skipped as 'not relevant' — check that's right.")
+
             st.markdown("**Preview**")
-            st.markdown(_preview(draft))
+            st.markdown(_preview(md_safe(draft)))
 
             fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
             dl = st.columns(2)
