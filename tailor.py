@@ -62,8 +62,7 @@ def build_system():
 
 def build_candidate_profile():
     """Assemble the stored resume + work history + tasks into one text block."""
-    lines = ["BASE RESUME:\n" + store.get_setting("base_resume", "") + "\n",
-             "WORK HISTORY AND TASKS (real experience only):"]
+    lines = ["WORK HISTORY AND TASKS (real experience only):"]
     for job in store.list_jobs():
         lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}")
         for task in store.list_tasks(job["id"]):
