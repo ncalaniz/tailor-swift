@@ -19,13 +19,44 @@ def _safe_export(build_fn, text):
         return None, str(e)
 
 def _preview(text):
-    """Turn [[JOB:id]] tags into readable headings for on-screen preview."""
-    def repl(m):
-        from export import _job_heading_parts
-        title, dates, loc = _job_heading_parts(int(m.group(1)))
+    """Turn [[JOB:id]] tags into readable headings for on-screen preview, in the same
+    reverse-chronological order the actual PDF/Word exports use."""
+    from export import _job_heading_parts, _year_of, _month_of
+
+    def _sort_key(job_id):
+        for j in store.list_jobs():
+            if j["id"] == job_id:
+                end = (j["end_date"] or "").strip().lower()
+                if not end or end == "present":
+                    return (0, "")
+                return (1, (_year_of(end) * -1, _month_of(end) * -1))
+        return (2, 0)
+
+    # parse line-by-line into preamble + per-job line lists, same approach build_pdf uses
+    preamble_lines = []
+    sections = []       # list of (job_id, [lines])
+    current = None
+    for raw in text.split("\n"):
+        m = re.match(r"^\[\[JOB:(\d+)\]\]\s*$", raw.strip())
+        if m:
+            current = []
+            sections.append((int(m.group(1)), current))
+            continue
+        (current if current is not None else preamble_lines).append(raw)
+
+    sections.sort(key=lambda s: _sort_key(s[0]))
+
+    def repl(job_id):
+        title, dates, loc = _job_heading_parts(job_id)
         h = title + (f" ({dates})" if dates else "")
         return f"### {h}" if h else ""
-    return re.sub(r"\[\[JOB:(\d+)\]\]", repl, text)
+
+    out_lines = list(preamble_lines)
+    for job_id, lines in sections:
+        out_lines.append(repl(job_id))
+        out_lines.extend(lines)
+
+    return "\n".join(out_lines)
 
 def md_safe(text):
     """Escape $ so st.markdown doesn't swallow money figures as LaTeX math."""
