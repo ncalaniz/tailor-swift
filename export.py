@@ -100,7 +100,7 @@ def build_docx(tailored_text):
 
     skills = _skills()
     if skills:
-        doc.add_heading("Skills & Technologies", level=1)
+        doc.add_heading("Technologies", level=1)
         doc.add_paragraph(", ".join(skills))
 
     edu = _education()
@@ -279,7 +279,7 @@ def build_pdf(tailored_text):
     skills = _skills()
     if skills:
         pdf.ln(3)
-        _section_header(pdf, "Skills & Technologies")
+        _section_header(pdf, "Technologies")
         pdf.set_font("Helvetica", "", 11)
         pdf.multi_cell(0, 5.5, _ascii(", ".join(skills)), new_x="LMARGIN", new_y="NEXT", align="L")
 
