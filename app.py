@@ -6,7 +6,7 @@ import json
 import datetime
 import store
 from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check
-from export import build_docx, build_pdf
+from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
 
@@ -33,7 +33,8 @@ def md_safe(text):
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME = "application/pdf"
-STATUSES = ["Not applied", "Applied", "Interviewing", "Rejected", "Offer", "Ghosted", "Passed"]
+STATUSES = ["Not applied", "Applied", "Interviewing", "Offer received", "Hired",
+           "Rejected by them", "No response", "I passed"]
 
 
 def _parse_list(text):
@@ -246,7 +247,14 @@ with profile_tab:
 
     st.subheader("Work history & accomplishments")
     st.caption("Each job holds its own tasks. Expand a job to edit it, see its tasks, or add more.")
-    for job in store.list_jobs():
+
+    def _job_sort_key(j):
+        end = (j["end_date"] or "").strip().lower()
+        if not end or end == "present":
+            return (0, "")  # current job(s): always first
+        return (1, (_year_of(end) * -1, _month_of(end) * -1))  # newest first
+
+    for job in sorted(store.list_jobs(), key=_job_sort_key):
         tasks = store.list_tasks(job["id"])
         with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)",
                          expanded=(job["id"] in st.session_state.get("open_jobs", set()))):
@@ -459,7 +467,7 @@ with tailor_tab:
             st.session_state[f"edver{a['id']}"] = st.session_state.get(f"edver{a['id']}", 0) + 1
             st.rerun()
         if d[1].button("Not a fit — skip"):
-            store.set_application_status(a["id"], "Passed")
+            store.set_application_status(a["id"], "I passed")
             st.session_state.pop("active_app", None)
             st.rerun()
 

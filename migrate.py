@@ -1,11 +1,18 @@
-# migrate.py — one-time: add the 'applied_snapshot' column to the applications table.
+# migrate.py — one-time: rename application status values to actor-clear names.
 import store
 
 conn = store.get_connection()
+renames = {
+    "Rejected": "Rejected by them",
+    "Offer": "Offer received",
+    "Ghosted": "No response",
+    "Passed": "I passed",
+}
 try:
-    conn.execute("ALTER TABLE applications ADD COLUMN applied_snapshot TEXT;")
+    for old, new in renames.items():
+        conn.execute("UPDATE applications SET status = ? WHERE status = ?;", (new, old))
     conn.commit()
-    print("Added 'applied_snapshot' column to applications.")
+    print("Renamed status values:", renames)
 except Exception as e:
-    print("Skipped (probably already added):", e)
+    print("Migration failed:", e)
 conn.close()
