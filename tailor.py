@@ -85,8 +85,13 @@ ANALYZE_SYS = (
     "tasks to the job ad. Respond with ONLY valid JSON — no code fences, no commentary — in exactly "
     'this shape: {"score": <integer 0-100>, "matched": [<skills/keywords from the ad the candidate '
     'genuinely demonstrates>], "missing": [<important requirements in the ad NOT evidenced in the '
-    'resume>], "gaps": [<short honest notes on real gaps>]}. '
-    'Do not pad "matched" with things the resume does not actually show.'
+    'resume>], "gaps": [{"gap": <short honest note on a real gap>, "ad_quote": <the exact phrase '
+    'or sentence from the job ad that this gap responds to>}]}. '
+    'Do not pad "matched" with things the resume does not actually show. '
+    "The ad_quote MUST be copied VERBATIM from the job ad text — exact words, not a paraphrase "
+    "or summary. If a gap doesn't map to one specific phrase in the ad, use the closest relevant "
+    "sentence rather than inventing a quote. A made-up quote is a fabrication, same as any other "
+    "invented fact — never do it."
 )
 
 def analyze_match(job_ad):

@@ -93,6 +93,10 @@ def set_application_date(app_id, date_applied):
 def save_tailored_result(app_id, generated):
     _write("UPDATE applications SET generated = ? WHERE id = ?;", (generated, app_id))
 
+def set_applied_snapshot(app_id, snapshot):
+    """Freeze the resume text at the moment of applying. Never overwritten after."""
+    _write("UPDATE applications SET applied_snapshot = ? WHERE id = ?;", (snapshot, app_id))
+
 def delete_application(app_id):
     _write("DELETE FROM applications WHERE id = ?;", (app_id,))
 

@@ -201,16 +201,41 @@ with profile_tab:
                 st.warning("Paste your LinkedIn Experience text first.")
             else:
                 try:
-                    _rc_flags = reality_check(_rc_src)
-                    if not _rc_flags:
-                        st.success("No discrepancies found — your bank matches the pasted source.")
-                    for _f in _rc_flags:
-                        st.warning(
-                            f"**{_f.get('field', '?')}** — bank says: {_f.get('bank_says', '?')} · "
-                            f"source says: {_f.get('source_says', '?')}\n\n{_f.get('note', '')}"
-                        )
+                    st.session_state["rc_flags"] = reality_check(_rc_src)
                 except Exception as e:
                     st.error(f"Reality check failed: {e}")
+
+        _dismissed = json.loads(store.get_setting("dismissed_reality_flags", "[]") or "[]")
+        _rc_flags = st.session_state.get("rc_flags", [])
+        _active = [f for f in _rc_flags if f.get("field", "") not in _dismissed]
+        _hidden = [f for f in _rc_flags if f.get("field", "") in _dismissed]
+
+        if _rc_flags and not _active:
+            st.success("No open discrepancies — your bank matches the pasted source.")
+        for _i, _f in enumerate(_active):
+            wc = st.columns([5, 1])
+            wc[0].warning(
+                f"**{_f.get('field', '?')}** — bank says: {_f.get('bank_says', '?')} · "
+                f"source says: {_f.get('source_says', '?')}\n\n{_f.get('note', '')}"
+            )
+            if wc[1].button("Known", key=f"dismiss_rc_{_i}",
+                            help="Mark as an intentional difference — hide on future runs"):
+                _dismissed.append(_f.get("field", ""))
+                store.set_setting("dismissed_reality_flags", json.dumps(_dismissed))
+                st.rerun()
+
+        if _hidden:
+            with st.expander(f"{len(_hidden)} known/dismissed difference(s) — click to review"):
+                for _i, _f in enumerate(_hidden):
+                    hc = st.columns([5, 1])
+                    hc[0].caption(
+                        f"**{_f.get('field', '?')}** — bank: {_f.get('bank_says', '?')} · "
+                        f"source: {_f.get('source_says', '?')}"
+                    )
+                    if hc[1].button("Un-dismiss", key=f"undismiss_rc_{_i}"):
+                        _dismissed.remove(_f.get("field", ""))
+                        store.set_setting("dismissed_reality_flags", json.dumps(_dismissed))
+                        st.rerun()
 
     st.subheader("Base resume")
     resume_text = st.text_area("Base resume", value=store.get_setting("base_resume", ""),
@@ -342,6 +367,10 @@ with tailor_tab:
 
     # ----- No active job: paste a new one -----
     if not active_id:
+        _just_applied = st.session_state.pop("just_applied", None)
+        if _just_applied:
+            st.success(f"Marked as applied — {_just_applied}. Find it anytime in the "
+                       f"Applications tab. Ready for the next one.")
         st.subheader("Work a new job")
         st.caption("Paste a job, analyze your fit first, then decide whether to tailor or pass.")
         with st.form("new_job", clear_on_submit=True):
@@ -378,13 +407,18 @@ with tailor_tab:
             matched, missing, gaps = (_parse_list(a["matched"]),
                                       _parse_list(a["missing"]), _parse_list(a["gaps"]))
             if matched:
-                st.markdown("**Keywords you already hit:** " + md_safe(", ".join(matched)))
-            if missing:
-                st.markdown("**Missing from your resume:** " + md_safe(", ".join(missing)))
+                with st.expander(f"Keywords you already hit ({len(matched)})"):
+                    st.markdown(", ".join(md_safe(m) for m in matched))
             if gaps:
                 st.markdown("**Real gaps to consider:**")
                 for g in gaps:
-                    st.markdown(f"- {md_safe(g)}")
+                    if isinstance(g, dict):
+                        st.markdown(f"- {md_safe(g.get('gap', ''))}")
+                        if g.get("ad_quote"):
+                            st.caption(f"↳ ad says: \u201c{md_safe(g['ad_quote'])}\u201d")
+                    else:
+                        # old-shape data from before this change — plain string, no quote yet
+                        st.markdown(f"- {md_safe(g)}")
             if st.button("Re-analyze fit (after adding experience)"):
                 with st.spinner("Re-analyzing..."):
                     if _run_analysis(a["id"], a["ad_text"]):
@@ -480,9 +514,14 @@ with tailor_tab:
                 dl[1].error(f"PDF export failed: {pdf_err}")
             if st.button("Mark as applied"):
                 store.save_tailored_result(a["id"], draft)
+                store.set_applied_snapshot(a["id"], draft)
                 store.set_application_status(a["id"], "Applied")
                 store.set_application_date(a["id"], datetime.date.today().isoformat())
-                st.success("Marked as applied — it's saved in the Applications tab.")
+                st.session_state[f"stver{a['id']}"] = st.session_state.get(f"stver{a['id']}", 0) + 1
+                st.session_state[f"dtver{a['id']}"] = st.session_state.get(f"dtver{a['id']}", 0) + 1
+                st.session_state["just_applied"] = f"{a['company'] or 'that role'} — {a['title'] or ''}"
+                st.session_state.pop("active_app", None)
+                st.rerun()
 
 # ================= Applications (the tracker) =================
 with apps_tab:
@@ -499,7 +538,8 @@ with apps_tab:
         with st.expander(header):
             c = st.columns(2)
             idx = STATUSES.index(a["status"]) if a["status"] in STATUSES else 0
-            new_status = c[0].selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}")
+            _stver = st.session_state.get(f"stver{a['id']}", 0)
+            new_status = c[0].selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}_{_stver}")
             if new_status != a["status"]:
                 store.set_application_status(a["id"], new_status)
                 if new_status == "Applied" and not a["date_applied"]:
@@ -540,10 +580,16 @@ with apps_tab:
                     if a["url"]:
                         st.markdown(f"[Open original posting]({a['url']})")
 
-            if a["generated"]:
+            _record = a["applied_snapshot"] or a["generated"]
+            if a["applied_snapshot"]:
+                st.caption("📌 Frozen at the moment you applied — this is what you actually sent, "
+                           "even if the draft has changed since.")
+                with st.expander("What I actually applied with"):
+                    st.text(a["applied_snapshot"])
+            if _record:
                 fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
-                docx_bytes, docx_err = _safe_export(build_docx, a["generated"])
-                pdf_bytes, pdf_err = _safe_export(build_pdf, a["generated"])
+                docx_bytes, docx_err = _safe_export(build_docx, _record)
+                pdf_bytes, pdf_err = _safe_export(build_pdf, _record)
                 dl = st.columns(2)
                 if docx_bytes is not None:
                     dl[0].download_button("⬇ Word", data=docx_bytes,
