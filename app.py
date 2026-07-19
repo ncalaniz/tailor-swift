@@ -270,6 +270,11 @@ with profile_tab:
                 st.session_state.setdefault("open_jobs", set()).add(job["id"])
                 store.update_job(job["id"], employer, role, start, end, loc)
                 st.success("Updated."); st.rerun()
+            _job_dirty = (employer != (job["employer"] or "") or role != (job["role"] or "") or
+                         start != (job["start_date"] or "") or end != (job["end_date"] or "") or
+                         loc != (job["location"] or ""))
+            if _job_dirty:
+                b[0].caption("⚠ Unsaved — press Enter alone doesn't save these fields.")
             if b[1].button("Delete job (and its tasks)", key=f"deljob{job['id']}"):
                 store.delete_job(job["id"])
                 st.session_state.setdefault("open_jobs", set()).discard(job["id"])
