@@ -96,6 +96,34 @@ def analyze_match(job_ad):
     clean = raw.strip().replace("```json", "").replace("```", "").strip()   # strip any fences
     return json.loads(clean)   # turn the JSON text into a Python dict
 
+REALITY_SYS = (
+    "You compare a candidate's resume database against an outside source they pasted (usually "
+    "their LinkedIn profile). Your ONLY job is to find DISCREPANCIES in facts: employer names, "
+    "job titles, start dates, end dates, and missing or extra jobs. Do not comment on wording, "
+    "style, or accomplishments — facts only. Respond with ONLY a valid JSON array, no fences, "
+    "no commentary. Each element: {\"field\": <what differs, e.g. 'ZipRecruiter — Director "
+    "start date'>, \"bank_says\": <the database value>, \"source_says\": <the pasted source's "
+    "value>, \"note\": <one short sentence on why it matters, e.g. 'a background check would "
+    "surface this'>}. If a job appears in one place but not the other, report it with "
+    "bank_says or source_says as 'missing'. If everything matches, return []. Never invent a "
+    "discrepancy; when the pasted text is ambiguous, skip it rather than guess."
+)
+
+def reality_check(pasted_source):
+    """Diff the stored jobs against pasted outside-source text (e.g. LinkedIn). Returns a list."""
+    jobs_lines = ["DATABASE JOBS:"]
+    for j in store.list_jobs():
+        jobs_lines.append(
+            f"- {j['employer']} — {j['role']} ({j['start_date'] or '?'} to {j['end_date'] or 'Present'})"
+        )
+    prompt = f"PASTED SOURCE:\n{pasted_source}\n\n" + "\n".join(jobs_lines)
+    raw = ask_claude(prompt, system=REALITY_SYS, model="claude-sonnet-4-6", max_tokens=1000)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()
+    result = json.loads(clean)
+    if not isinstance(result, list):
+        raise ValueError("Expected a list of discrepancies")
+    return result
+
 BRAINDUMP_SYS = (
     "You turn a person's messy, plain-English description of work they did into clean, separate "
     "resume task entries. STRICT HONESTY: only rephrase what they actually wrote — never inflate, "

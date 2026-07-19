@@ -5,7 +5,7 @@ import streamlit as st
 import json
 import datetime
 import store
-from tailor import braindump_to_tasks, tailor_resume, analyze_match
+from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check
 from export import build_docx, build_pdf
 from lint import check_bank
 import re
@@ -186,6 +186,31 @@ with profile_tab:
             st.caption("Deterministic checks on your stored data. Flags only — nothing is changed.")
             for _sev, _msg in _bank_flags:
                 (st.warning if _sev == "warn" else st.info)(_msg)
+
+    with st.expander("🔎 Reality check — compare your bank against LinkedIn"):
+        st.caption("Paste your LinkedIn Experience section (select it on your profile page, "
+                   "copy, paste here). One model call compares employers, titles, and dates "
+                   "against your stored jobs and flags anything that doesn't match. Flags only "
+                   "— nothing is changed. Catches the errors that look right: a plausible-but-"
+                   "wrong date is invisible to every other check in the app.")
+        _rc_src = st.text_area("LinkedIn Experience text", height=180, key="rc_src",
+                               label_visibility="collapsed",
+                               placeholder="Director of Operations\nStubHub · Full-time\nApr 2023 - Present\n...")
+        if st.button("Run reality check", key="rc_run"):
+            if not _rc_src.strip():
+                st.warning("Paste your LinkedIn Experience text first.")
+            else:
+                try:
+                    _rc_flags = reality_check(_rc_src)
+                    if not _rc_flags:
+                        st.success("No discrepancies found — your bank matches the pasted source.")
+                    for _f in _rc_flags:
+                        st.warning(
+                            f"**{_f.get('field', '?')}** — bank says: {_f.get('bank_says', '?')} · "
+                            f"source says: {_f.get('source_says', '?')}\n\n{_f.get('note', '')}"
+                        )
+                except Exception as e:
+                    st.error(f"Reality check failed: {e}")
 
     st.subheader("Base resume")
     resume_text = st.text_area("Base resume", value=store.get_setting("base_resume", ""),
