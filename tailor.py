@@ -60,7 +60,7 @@ def build_system():
         "followed by 3-4 bullet points (each starting with '- '), not a paragraph — "
         "one distinct, independently-checkable claim per bullet. Then, for each relevant "
         "job, output a line containing ONLY that job's tag exactly as given (e.g. "
-        "tag exactly as given (e.g. '[[JOB:3]]') on its own line, followed by that job's "
+        "'[[JOB:3]]') on its own line, followed by that job's "
         "bullets starting with '- '. Output jobs in reverse-chronological order — most recent "
         "first — regardless of relevance. Do NOT write company names, job titles, or dates "
         "yourself — only the [[JOB:id]] tag and the bullets. Skip jobs not relevant to this ad."

@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     employer   TEXT NOT NULL,
     role       TEXT,
     start_date TEXT,
-    end_date   TEXT
+    end_date   TEXT,
+    location   TEXT
 );
 
 -- Accomplishment bank. Each task is tied to one job (its resume section).
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS applications (
     missing      TEXT,
     gaps         TEXT,
     generated    TEXT,
+    applied_snapshot TEXT,
     created_at   TEXT DEFAULT (date('now'))
 );
 """
