@@ -75,6 +75,50 @@ def _parse_list(text):
     except Exception:
         return []
 
+def _braindump_widget(job_id, key_ns):
+    """Reusable 'describe what you did, I'll draft tasks' flow. key_ns keeps widget keys
+    unique when the same flow is used from more than one screen (Profile, Tailor gap-fill)."""
+    st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
+    st.caption("Write in plain words — a paragraph, a story, however it comes out. "
+               "It gets split into separate polished entries that you review before "
+               "saving. Only what you actually say gets used — nothing is invented.")
+
+    dump_counter = st.session_state.get(f"dumpgen_{key_ns}{job_id}", 0)
+    dump = st.text_area("What did you do at this job?",
+                        key=f"dump_{key_ns}{job_id}_{dump_counter}",
+                        placeholder="e.g. I ran the team that owned provisioning...")
+    if st.button("Draft tasks from this", key=f"dumpbtn_{key_ns}{job_id}"):
+        st.session_state.setdefault("open_jobs", set()).add(job_id)
+        if dump.strip():
+            with st.spinner("Turning your words into task entries..."):
+                try:
+                    st.session_state[f"drafts_{key_ns}{job_id}"] = braindump_to_tasks(dump)
+                except Exception as e:
+                    st.error(f"Couldn't parse that — try again. ({e})")
+        else:
+            st.warning("Write something first.")
+
+    drafts = st.session_state.get(f"drafts_{key_ns}{job_id}", [])
+    if drafts:
+        st.markdown("**Review before saving** — edit anything, untick what's wrong:")
+        keep, edited = [], []
+        for i, d in enumerate(drafts):
+            cols = st.columns([0.5, 6])
+            k = cols[0].checkbox(" ", value=True, key=f"keep_{key_ns}{job_id}_{i}",
+                                label_visibility="collapsed")
+            e = cols[1].text_area(" ", value=d, key=f"edit_{key_ns}{job_id}_{i}",
+                                  label_visibility="collapsed", height=68)
+            keep.append(k); edited.append(e)
+        if st.button("Save selected to this job", key=f"dumpsave_{key_ns}{job_id}"):
+            st.session_state.setdefault("open_jobs", set()).add(job_id)
+            n = 0
+            for k, e in zip(keep, edited):
+                if k and e.strip():
+                    store.add_task(job_id, e.strip()); n += 1
+            st.session_state.pop(f"drafts_{key_ns}{job_id}", None)
+            st.session_state[f"dumpgen_{key_ns}{job_id}"] = dump_counter + 1
+            st.success(f"Saved {n} tasks."); st.rerun()
+
 def _parse_date(text):
     """Turn stored ISO text ('2026-07-17') into a date object. Empty/bad -> None."""
     try:

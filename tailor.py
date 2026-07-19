@@ -118,7 +118,14 @@ ANALYZE_SYS = (
     "treat every item in that list as ONE illustrative example of a broader category, not a "
     "separate required item — do not report a single example from an illustrative list as its "
     "own named gap. Only treat a specific tool/skill as a discrete requirement if the ad names "
-    "it outside an illustrative list, or explicitly says 'required', 'must have', or similar."
+    "it outside an illustrative list, or explicitly says 'required', 'must have', or similar. "
+    "NEVER STATE A SENIORITY/LEVEL CLAIM THAT CONTRADICTS THE CANDIDATE'S STORED TITLE. If the "
+    "candidate's real title is Director (or similar), never write a gap like 'leadership scope "
+    "has been at operations and mid-manager level' — that reads as if their actual title were "
+    "ignored. Instead, name the SPECIFIC scope difference: e.g. 'Director-level title, but "
+    "scope was a single ops function rather than a multi-department org reporting to a "
+    "C-suite exec.' A gap about org scope/scale is fine and often real — a gap that implies a "
+    "lower job title than the candidate actually holds is not."
 )
 
 def analyze_match(job_ad):
