@@ -5,7 +5,7 @@ import streamlit as st
 import json
 import datetime
 import store
-from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check
+from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit
 from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
@@ -395,46 +395,7 @@ with profile_tab:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
 
-            st.markdown("**✨ Or describe what you did, and I'll draft the tasks**")
-            st.caption("Write in plain words — a paragraph, a story, however it comes out. "
-                       "It gets split into separate polished entries that you review before "
-                       "saving. Only what you actually say gets used — nothing is invented.")
-
-            dump_counter = st.session_state.get(f"dumpgen{job['id']}", 0)
-            dump = st.text_area("What did you do at this job?",
-                                key=f"dump{job['id']}_{dump_counter}",
-                                placeholder="e.g. I ran the team that owned provisioning...")
-            if st.button("Draft tasks from this", key=f"dumpbtn{job['id']}"):
-                st.session_state.setdefault("open_jobs", set()).add(job["id"])
-                if dump.strip():
-                    with st.spinner("Turning your words into task entries..."):
-                        try:
-                            st.session_state[f"drafts{job['id']}"] = braindump_to_tasks(dump)
-                        except Exception as e:
-                            st.error(f"Couldn't parse that — try again. ({e})")
-                else:
-                    st.warning("Write something first.")
-
-            drafts = st.session_state.get(f"drafts{job['id']}", [])
-            if drafts:
-                st.markdown("**Review before saving** — edit anything, untick what's wrong:")
-                keep, edited = [], []
-                for i, d in enumerate(drafts):
-                    cols = st.columns([0.5, 6])
-                    k = cols[0].checkbox(" ", value=True, key=f"keep{job['id']}_{i}",
-                                        label_visibility="collapsed")
-                    e = cols[1].text_area(" ", value=d, key=f"edit{job['id']}_{i}",
-                                          label_visibility="collapsed", height=68)
-                    keep.append(k); edited.append(e)
-                if st.button("Save selected to this job", key=f"dumpsave{job['id']}"):
-                    st.session_state.setdefault("open_jobs", set()).add(job["id"])
-                    n = 0
-                    for k, e in zip(keep, edited):
-                        if k and e.strip():
-                            store.add_task(job["id"], e.strip()); n += 1
-                    st.session_state.pop(f"drafts{job['id']}", None)
-                    st.session_state[f"dumpgen{job['id']}"] = dump_counter + 1
-                    st.success(f"Saved {n} tasks."); st.rerun()
+            _braindump_widget(job["id"], "profile_")
 
     with st.form("add_job", clear_on_submit=True):
         st.write("Add a job")
@@ -525,15 +486,7 @@ with tailor_tab:
             add_labels = {f"{j['employer']} — {j['role']}": j["id"] for j in store.list_jobs()}
             if add_labels:
                 pick = st.selectbox("Add to which job?", list(add_labels.keys()), key="tailor_addjob")
-                new_task = st.text_area("Experience to add (one per line)", key="tailor_addtxt")
-                if st.button("Add to Task Bank"):
-                    lines = [ln.strip() for ln in new_task.split("\n") if ln.strip()]
-                    if lines:
-                        for ln in lines:
-                            store.add_task(add_labels[pick], ln)
-                        st.success(f"Added {len(lines)} task(s). Re-analyze or re-tailor to use them.")
-                    else:
-                        st.warning("Type the experience first.")
+                _braindump_widget(add_labels[pick], "tailor_")
             else:
                 st.info("Add a job under Profile first.")
 
@@ -582,6 +535,28 @@ with tailor_tab:
             if _out:
                 st.info("Left out of this resume: " + ", ".join(_out) + ". If any of those "
                         "belong here, they were skipped as 'not relevant' — check that's right.")
+
+            with st.expander("🔎 Export audit — trace every claim back to the bank"):
+                st.caption("One model call, on demand — traces each claim in the draft against "
+                           "your task bank. Catches connotation drift and synonym swaps the "
+                           "tailoring prompt's own rules can miss. Flags only, nothing changes "
+                           "automatically.")
+                if st.button("Run export audit", key=f"auditrun{a['id']}"):
+                    with st.spinner("Tracing claims against your task bank..."):
+                        try:
+                            st.session_state[f"audit{a['id']}"] = export_audit(draft)
+                        except Exception as e:
+                            st.error(f"Audit failed: {e}")
+                _audit_flags = st.session_state.get(f"audit{a['id']}", [])
+                if _audit_flags:
+                    for _f in _audit_flags:
+                        st.warning(
+                            f"**[{_f.get('issue_type', '?')}]** {md_safe(_f.get('claim', ''))}\n\n"
+                            f"{md_safe(_f.get('note', ''))}\n\n"
+                            f"Source task: {md_safe(_f.get('source_task') or 'none found')}"
+                        )
+                elif f"audit{a['id']}" in st.session_state:
+                    st.success("No drift found — every claim traces back to the bank.")
 
             st.markdown("**Preview**")
             st.markdown(_preview(md_safe(draft)))

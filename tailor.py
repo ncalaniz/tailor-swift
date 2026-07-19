@@ -148,6 +148,55 @@ REALITY_SYS = (
     "discrepancy; when the pasted text is ambiguous, skip it rather than guess."
 )
 
+EXPORT_AUDIT_SYS = (
+    "You are auditing a TAILORED RESUME DRAFT against the candidate's real task bank, looking "
+    "for claims that overreach what the bank actually supports. This is NOT about inventing "
+    "facts wholesale — the tailoring prompt already blocks that. You're looking for subtler "
+    "drift: things that are technically true but misleading, or that quietly escalate beyond "
+    "the source. Respond with ONLY a valid JSON array, no fences, no commentary. Each element: "
+    '{"claim": <the exact phrase or sentence from the draft>, "issue_type": <one of '
+    '"unbacked", "attribution", "blended", "connotation", "synonym">, "note": <one sentence on '
+    "what's wrong>, \"source_task\": <the closest matching task from the bank, or null if none "
+    'exists>}. If nothing is wrong, return [].\n\n'
+    "CHECK FOR EACH TYPE:\n"
+    "- unbacked: a claim (a number, a scope, a scale) that doesn't map to any task in the bank.\n"
+    "- attribution: team work rewritten as first-person individual work, or a contributor role "
+    "upgraded to owner/founder/sole leader.\n"
+    "- blended: two distinct tasks combined into one bullet in a way that implies one caused "
+    "the other's outcome, when the bank doesn't support that connection.\n"
+    "- connotation: a word that is technically true and not escalated, but whose common meaning "
+    "outruns the underlying task, so a reader would understand something bigger or different "
+    "than what actually happened. Watch especially for: 'compliance', 'owned', 'led', 'audited', "
+    "'secured', 'directed', 'governed'. Example: the bank says 'agents adhered to internal "
+    "policy' and the draft says 'compliance' — technically defensible, but a reader in a "
+    "regulated industry will hear regulatory/legal compliance, not internal policy adherence. "
+    "For each connotation flag, name what a reader would likely assume vs. what the bank "
+    "actually supports.\n"
+    "- synonym: a word was swapped for a near-synonym that changes the reader's impression, "
+    "even though both are 'true-ish'. Example: 'rep' (sales/quota-carrying) swapped for 'agent' "
+    "(support/call-center) — same job, different signal to a reader. Watch for these swaps "
+    "especially: rep/agent, manager/lead, owned/managed, built/implemented, director/head. Only "
+    "flag a synonym swap if it actually changes what a reader would infer about the role.\n\n"
+    "Be precise and conservative — only flag real drift, not stylistic choices. You are the "
+    "audit, not the editor: name the problem, do not rewrite the claim yourself."
+)
+
+def export_audit(tailored_text):
+    """Trace every claim in a tailored draft back to the bank; flag drift the tailoring
+    prompt's own rules might have missed. Returns a list of flag dicts."""
+    prompt = f"TAILORED DRAFT:\n{tailored_text}\n\n{build_candidate_profile()}"
+    raw = ask_claude(prompt, system=EXPORT_AUDIT_SYS, model="claude-sonnet-4-6", max_tokens=3000)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()
+    try:
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        raise ValueError("The audit response got cut off before finishing — try running it "
+                         "again. If it keeps happening, the draft may have too much to check "
+                         "in one pass.")
+    if not isinstance(result, list):
+        raise ValueError("Expected a list of flags")
+    return result
+
 def reality_check(pasted_source):
     """Diff the stored jobs against pasted outside-source text (e.g. LinkedIn). Returns a list."""
     jobs_lines = ["DATABASE JOBS:"]
