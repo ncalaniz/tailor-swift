@@ -212,6 +212,48 @@ def export_audit(tailored_text):
         raise ValueError("Expected a list of flags")
     return result
 
+BANK_LINT_TIER2_SYS = (
+    "You are reviewing a candidate's ENTIRE task bank for wording problems — not comparing it "
+    "to any specific job ad or tailored draft, just checking the bank against itself. Respond "
+    "with ONLY a valid JSON array, no fences, no commentary. Each element: "
+    '{"issue_type": <one of "near_duplicate", "contradictory", "vocabulary_drift", '
+    '"connotation">, "tasks": [<the task text(s) involved, one or two entries>], "note": <one '
+    "sentence on what's wrong and why it matters>}. If nothing is wrong, return [].\n\n"
+    "CHECK FOR EACH TYPE:\n"
+    "- near_duplicate: two tasks (possibly in different jobs) describing the same underlying "
+    "work, where keeping both risks double-counting the same accomplishment as if it happened "
+    "twice, or obscures which role actually owns it.\n"
+    "- contradictory: two tasks describing the same project or number differently (e.g. "
+    "'quarterly spend' in one task, 'quarterly comp spend' in another, for what looks like the "
+    "same initiative) — the bank disagreeing with itself.\n"
+    "- vocabulary_drift: the same role, entity, or concept called two different things across "
+    "tasks in ways that could read as two different things to someone else (e.g. 'rep' in one "
+    "task, 'agent' for what looks like the same role in another).\n"
+    "- connotation: a word in a task that is technically true but whose common meaning outruns "
+    "what the task actually describes, so a future reader (or a future tailored resume built "
+    "from this task) would infer something bigger or different than what happened. Watch "
+    "especially for: 'compliance', 'owned', 'led', 'audited', 'secured', 'directed', "
+    "'governed'. Flag the word AND explain what a reader would likely over-infer.\n\n"
+    "Be conservative — only flag real ambiguity, not stylistic variation. This is the source "
+    "data a resume gets built from; catching an issue here prevents it from surfacing "
+    "repeatedly in every future tailored draft instead of catching it once."
+)
+
+def bank_lint_tier2():
+    """One model call reviewing the whole task bank for near-duplicates, contradictions,
+    vocabulary drift, and connotation issues. Returns a list of flag dicts."""
+    prompt = build_candidate_profile()
+    raw = ask_claude(prompt, system=BANK_LINT_TIER2_SYS, model="claude-sonnet-4-6", max_tokens=2000)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()
+    try:
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        raise ValueError("The review response got cut off before finishing — try running it "
+                         "again.")
+    if not isinstance(result, list):
+        raise ValueError("Expected a list of flags")
+    return result
+
 def reality_check(pasted_source):
     """Diff the stored jobs against pasted outside-source text (e.g. LinkedIn). Returns a list."""
     jobs_lines = ["DATABASE JOBS:"]

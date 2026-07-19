@@ -5,7 +5,7 @@ import streamlit as st
 import json
 import datetime
 import store
-from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit
+from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit, bank_lint_tier2
 from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
@@ -262,6 +262,29 @@ with profile_tab:
             st.caption("Deterministic checks on your stored data. Flags only — nothing is changed.")
             for _sev, _msg in _bank_flags:
                 (st.warning if _sev == "warn" else st.info)(_msg)
+
+    with st.expander("🔎 Bank review — wording issues across your whole task bank"):
+        st.caption("One model call, on demand — reviews every task for near-duplicates, "
+                   "contradictory numbers, vocabulary drift, and connotation issues (a true "
+                   "word whose common meaning outruns the task). Catches these once, at the "
+                   "source, instead of the same issue resurfacing in every future tailored "
+                   "draft. Flags only, nothing changes automatically.")
+        if st.button("Run bank review", key="banklint2_run"):
+            with st.spinner("Reviewing your task bank..."):
+                try:
+                    st.session_state["banklint2_flags"] = bank_lint_tier2()
+                except Exception as e:
+                    st.error(f"Review failed: {e}")
+        _bl2_flags = st.session_state.get("banklint2_flags", [])
+        if _bl2_flags:
+            for _f in _bl2_flags:
+                st.warning(
+                    f"**[{_f.get('issue_type', '?')}]**\n\n"
+                    f"{md_safe(_f.get('note', ''))}\n\n"
+                    + "\n\n".join(f"- {md_safe(t)}" for t in _f.get("tasks", []))
+                )
+        elif "banklint2_flags" in st.session_state:
+            st.success("No wording issues found across your task bank.")
 
     with st.expander("🔎 Reality check — compare your bank against LinkedIn"):
         st.caption("Paste your LinkedIn Experience section (select it on your profile page, "
