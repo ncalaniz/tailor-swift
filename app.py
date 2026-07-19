@@ -10,6 +10,14 @@ from export import build_docx, build_pdf
 from lint import check_bank
 import re
 
+def _safe_export(build_fn, text):
+    """Run a build_docx/build_pdf call; never let a bad export crash the page.
+    Returns (bytes_or_None, error_message_or_None)."""
+    try:
+        return build_fn(text), None
+    except Exception as e:
+        return None, str(e)
+
 def _preview(text):
     """Turn [[JOB:id]] tags into readable headings for on-screen preview."""
     def repl(m):
@@ -432,11 +440,19 @@ with tailor_tab:
             st.markdown(_preview(md_safe(draft)))
 
             fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
+            docx_bytes, docx_err = _safe_export(build_docx, draft)
+            pdf_bytes, pdf_err = _safe_export(build_pdf, draft)
             dl = st.columns(2)
-            dl[0].download_button("⬇ Word (.docx)", data=build_docx(draft),
-                                  file_name=fname + ".docx", mime=DOCX_MIME, key="dl_active")
-            dl[1].download_button("⬇ PDF", data=build_pdf(draft),
-                                  file_name=fname + ".pdf", mime=PDF_MIME, key="pdf_active")
+            if docx_bytes is not None:
+                dl[0].download_button("⬇ Word (.docx)", data=docx_bytes,
+                                      file_name=fname + ".docx", mime=DOCX_MIME, key="dl_active")
+            else:
+                dl[0].error(f"Word export failed: {docx_err}")
+            if pdf_bytes is not None:
+                dl[1].download_button("⬇ PDF", data=pdf_bytes,
+                                      file_name=fname + ".pdf", mime=PDF_MIME, key="pdf_active")
+            else:
+                dl[1].error(f"PDF export failed: {pdf_err}")
             if st.button("Mark as applied"):
                 store.save_tailored_result(a["id"], draft)
                 store.set_application_status(a["id"], "Applied")
@@ -474,6 +490,21 @@ with apps_tab:
                 store.set_application_date(a["id"], new_date_text)
                 st.rerun()
 
+            with st.expander("Update company / title"):
+                st.caption("For aggregators (Ladders, etc.) where the real employer only shows "
+                           "up after you apply.")
+                ec = st.columns(2)
+                new_company = ec[0].text_input("Company", value=a["company"] or "",
+                                                key=f"co{a['id']}")
+                new_title = ec[1].text_input("Title", value=a["title"] or "",
+                                              key=f"ti{a['id']}")
+                if st.button("Save company / title", key=f"savect{a['id']}"):
+                    if new_company != (a["company"] or ""):
+                        store.set_application_company(a["id"], new_company)
+                    if new_title != (a["title"] or ""):
+                        store.set_application_title(a["id"], new_title)
+                    st.rerun()
+
             if st.button("Open in Tailor tab", key=f"open{a['id']}"):
                 st.session_state["active_app"] = a["id"]
                 st.rerun()
@@ -486,11 +517,19 @@ with apps_tab:
 
             if a["generated"]:
                 fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
+                docx_bytes, docx_err = _safe_export(build_docx, a["generated"])
+                pdf_bytes, pdf_err = _safe_export(build_pdf, a["generated"])
                 dl = st.columns(2)
-                dl[0].download_button("⬇ Word", data=build_docx(a["generated"]),
-                                      file_name=fname + ".docx", mime=DOCX_MIME, key=f"dl{a['id']}")
-                dl[1].download_button("⬇ PDF", data=build_pdf(a["generated"]),
-                                      file_name=fname + ".pdf", mime=PDF_MIME, key=f"pdf{a['id']}")
+                if docx_bytes is not None:
+                    dl[0].download_button("⬇ Word", data=docx_bytes,
+                                          file_name=fname + ".docx", mime=DOCX_MIME, key=f"dl{a['id']}")
+                else:
+                    dl[0].error(f"Word export failed: {docx_err}")
+                if pdf_bytes is not None:
+                    dl[1].download_button("⬇ PDF", data=pdf_bytes,
+                                          file_name=fname + ".pdf", mime=PDF_MIME, key=f"pdf{a['id']}")
+                else:
+                    dl[1].error(f"PDF export failed: {pdf_err}")
 
             notes = st.text_area("Notes", value=a["notes"] or "", key=f"nt{a['id']}")
             if st.button("Save notes", key=f"sn{a['id']}"):

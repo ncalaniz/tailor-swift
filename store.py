@@ -81,6 +81,12 @@ def set_application_status(app_id, status):
 def set_application_notes(app_id, notes):
     _write("UPDATE applications SET notes = ? WHERE id = ?;", (notes, app_id))
 
+def set_application_company(app_id, company):
+    _write("UPDATE applications SET company = ? WHERE id = ?;", (company, app_id))
+
+def set_application_title(app_id, title):
+    _write("UPDATE applications SET title = ? WHERE id = ?;", (title, app_id))
+
 def set_application_date(app_id, date_applied):
     _write("UPDATE applications SET date_applied = ? WHERE id = ?;", (date_applied, app_id))    
 

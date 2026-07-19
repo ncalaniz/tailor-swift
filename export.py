@@ -17,6 +17,25 @@ def _is_rule(line):
     """True for leftover '---' style separator lines we want to drop."""
     return len(line) >= 3 and set(line) <= {"-", "*", "_"}
 
+def _extract_headline(text):
+    """Pull the '## Headline' line out of the tailored text; return (headline, rest)."""
+    lines = text.split("\n")
+    headline = ""
+    out = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip() == "## Headline":
+            i += 1
+            while i < len(lines) and not lines[i].strip():
+                i += 1
+            if i < len(lines):
+                headline = lines[i].strip()
+                i += 1
+            continue
+        out.append(lines[i])
+        i += 1
+    return headline, "\n".join(out)
+
 def _ascii(s):
     """Swap characters the PDF font can't handle for plain equivalents."""
     for bad, good in [("—", "-"), ("–", "-"), ("’", "'"), ("‘", "'"),
@@ -46,12 +65,17 @@ def _dates_for_heading(heading):
 
 def build_docx(tailored_text):
     """Turn the tailored text into a Word doc, returned as bytes."""
+    headline, tailored_text = _extract_headline(tailored_text)
     doc = docx.Document()
     name, contact_parts = _contact()
     if name:
         doc.add_heading(name, level=0)
     for part in contact_parts:
         doc.add_paragraph(part)
+    if headline:
+        p = doc.add_paragraph()
+        run = p.add_run(headline)
+        run.bold = True
 
     for raw in tailored_text.split("\n"):
         line = raw.strip()
@@ -135,13 +159,22 @@ def _section_header(pdf, title):
     pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
     pdf.ln(2)
 
+_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+           "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+
 def _year_of(text):
     """Pull a 4-digit year out of a date string like 'Apr 2023' (0 if none)."""
     m = re.search(r"(\d{4})", text or "")
     return int(m.group(1)) if m else 0
 
+def _month_of(text):
+    """Pull a month number out of a date string like 'Apr 2023' (6 = mid-year, if none)."""
+    t = (text or "").strip().lower()[:3]
+    return _MONTHS.get(t, 6)
+
 def build_pdf(tailored_text):
     """Turn the tailored text into a PDF, returned as bytes."""
+    headline, tailored_text = _extract_headline(tailored_text)
     pdf = FPDF()
     pdf.add_page()
     pdf.set_margins(20, 20, 20)
@@ -154,6 +187,10 @@ def build_pdf(tailored_text):
         pdf.set_font("Helvetica", "", 10)
         for part in contact_parts:
             pdf.cell(0, 5, _ascii(part), new_x="LMARGIN", new_y="NEXT")
+    if headline:
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.multi_cell(0, 6, _ascii(headline), new_x="LMARGIN", new_y="NEXT", align="L")
     pdf.ln(4)
 
     # --- pass 1: split the text into preamble (summary) and per-job sections ---
@@ -183,7 +220,7 @@ def build_pdf(tailored_text):
                 start = (j["start_date"] or "").strip()
                 if not end or end == "present":
                     return (0, "")            # current job: always first
-                return (1, _year_of(end) * -1)  # then by end year, newest first
+                return (1, (_year_of(end) * -1, _month_of(end) * -1))  # newest first, month breaks ties
         return (2, 0)
     sections.sort(key=_sort_key)
 
