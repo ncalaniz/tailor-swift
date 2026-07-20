@@ -170,9 +170,9 @@ EXPORT_AUDIT_SYS = (
     "drift: things that are technically true but misleading, or that quietly escalate beyond "
     "the source. Respond with ONLY a valid JSON array, no fences, no commentary. Each element: "
     '{"claim": <the exact phrase or sentence from the draft>, "issue_type": <one of '
-    '"unbacked", "attribution", "blended", "connotation", "synonym">, "note": <one sentence on '
-    "what's wrong>, \"source_task\": <the closest matching task from the bank, or null if none "
-    'exists>}. If nothing is wrong, return [].\n\n'
+    '"unbacked", "attribution", "blended", "connotation", "synonym", "summary_orphan">, "note": '
+    '<one sentence on what\'s wrong>, "source_task": <the closest matching task from the bank, '
+    'or null if none exists>}. If nothing is wrong, return [].\n\n'
     "CHECK FOR EACH TYPE:\n"
     "- unbacked: a claim (a number, a scope, a scale) that doesn't map to any task in the bank.\n"
     "- attribution: team work rewritten as first-person individual work, or a contributor role "
@@ -191,7 +191,23 @@ EXPORT_AUDIT_SYS = (
     "even though both are 'true-ish'. Example: 'rep' (sales/quota-carrying) swapped for 'agent' "
     "(support/call-center) — same job, different signal to a reader. Watch for these swaps "
     "especially: rep/agent, manager/lead, owned/managed, built/implemented, director/head. Only "
-    "flag a synonym swap if it actually changes what a reader would infer about the role.\n\n"
+    "flag a synonym swap if it actually changes what a reader would infer about the role.\n"
+    "- summary_orphan: a claim in the '## Summary' or '## Headline' section that describes work "
+    "(a project, an initiative, a specific accomplishment) which does NOT appear anywhere in "
+    "the body bullets of THIS SAME DRAFT. This is different from 'unbacked' — the claim may be "
+    "perfectly true and backed by a real task in the bank, but if that task's content was "
+    "edited out of the body (e.g. the user manually trimmed a bullet), the summary now promises "
+    "something a reader won't find any evidence for anywhere else in the document they're "
+    "holding. Check every summary/headline claim against the BODY BULLETS of this draft "
+    "specifically, not against the bank. If a summary claim's subject matter isn't echoed by at "
+    "least one body bullet, flag it as summary_orphan.\n\n"
+    "CHECK EVERY CATEGORY AGAINST EVERY CLAIM INDEPENDENTLY. A single claim can have more than "
+    "one distinct problem at once — e.g. a claim can be BOTH attribution-inflated (team work "
+    "claimed as individual) AND summary_orphan (its source bullet was removed from the body) "
+    "at the same time. Do not stop checking a claim once you've found one issue with it — if "
+    "it has two distinct problems, output two separate flags for it, one per issue_type. Do "
+    "not silently drop the summary_orphan check just because a claim already has a different "
+    "flag.\n\n"
     "Be precise and conservative — only flag real drift, not stylistic choices. You are the "
     "audit, not the editor: name the problem, do not rewrite the claim yourself."
 )

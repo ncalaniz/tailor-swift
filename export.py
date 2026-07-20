@@ -151,12 +151,18 @@ def _skills():
     except Exception:
         return []
 
+ACCENT_RGB = (26, 54, 93)  # muted navy — change these three numbers to try other colors
+
 def _section_header(pdf, title):
-    """Draw a section title with a horizontal rule under it."""
+    """Draw a section title in the accent color, with a rule under it."""
     pdf.set_font("Helvetica", "B", 15)
+    pdf.set_text_color(*ACCENT_RGB)
     pdf.multi_cell(0, 8, _ascii(title), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
     y = pdf.get_y()
+    pdf.set_draw_color(*ACCENT_RGB)
     pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
+    pdf.set_draw_color(0, 0, 0)
     pdf.ln(2)
 
 _MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
@@ -182,7 +188,9 @@ def build_pdf(tailored_text):
     name, contact_parts = _contact()
     if name:
         pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(*ACCENT_RGB)
         pdf.multi_cell(0, 9, _ascii(name), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
     if contact_parts:
         pdf.set_font("Helvetica", "", 10)
         for part in contact_parts:
@@ -233,11 +241,16 @@ def build_pdf(tailored_text):
             _section_header(pdf, line[3:])
         elif line.startswith("- ") or line.startswith("* "):
             pdf.set_font("Helvetica", "", 11)
-            pdf.multi_cell(0, 5.5, chr(149) + " " + _ascii(line[2:]), new_x="LMARGIN", new_y="NEXT", align="L")
+            bullet_indent = 5
+            pdf.set_x(pdf.l_margin)
+            pdf.cell(bullet_indent, 5.2, chr(149))
+            usable = pdf.w - pdf.l_margin - pdf.r_margin - bullet_indent
+            pdf.multi_cell(usable, 5.2, _ascii(line[2:]), new_x="LMARGIN", new_y="NEXT", align="L")
+            pdf.ln(0.5)
         else:
             pdf.set_font("Helvetica", "", 11)
             pdf.multi_cell(0, 5.5, _ascii(line), new_x="LMARGIN", new_y="NEXT", align="L")
-        pdf.ln(1.5)
+            pdf.ln(1.5)
 
     for line in preamble:
         _draw_line(line)

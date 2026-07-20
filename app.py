@@ -18,6 +18,39 @@ def _safe_export(build_fn, text):
     except Exception as e:
         return None, str(e)
 
+def _sort_draft_text(text):
+    """Reorder [[JOB:id]] sections in raw tailored text to reverse-chronological order,
+    same sort key as export.py/_preview — but keeps the tags intact (doesn't convert to
+    headers). Run ONCE right after a fresh tailor/re-tailor, not on every rerun."""
+    from export import _year_of, _month_of
+
+    def _sort_key(job_id):
+        for j in store.list_jobs():
+            if j["id"] == job_id:
+                end = (j["end_date"] or "").strip().lower()
+                if not end or end == "present":
+                    return (0, "")
+                return (1, (_year_of(end) * -1, _month_of(end) * -1))
+        return (2, 0)
+
+    lines = text.split("\n")
+    preamble = []
+    sections = []
+    current = None
+    for raw in lines:
+        m = re.match(r"^\[\[JOB:(\d+)\]\]\s*$", raw.strip())
+        if m:
+            current = [raw]
+            sections.append((int(m.group(1)), current))
+            continue
+        (current if current is not None else preamble).append(raw)
+
+    sections.sort(key=lambda s: _sort_key(s[0]))
+    out = preamble[:]
+    for _, block_lines in sections:
+        out.extend(block_lines)
+    return "\n".join(out)
+
 def _preview(text):
     """Turn [[JOB:id]] tags into readable headings for on-screen preview, in the same
     reverse-chronological order the actual PDF/Word exports use."""
@@ -519,6 +552,7 @@ with tailor_tab:
         if d[0].button("Tailor / Re-tailor resume", type="primary"):
             with st.spinner("Writing your tailored resume..."):
                 result = tailor_resume(a["ad_text"])
+                result = _sort_draft_text(result)
                 store.save_tailored_result(a["id"], result)
             st.session_state[f"edver{a['id']}"] = st.session_state.get(f"edver{a['id']}", 0) + 1
             st.rerun()
