@@ -443,7 +443,8 @@ with profile_tab:
 
             # --- add tasks, scoped to THIS job ---
             with st.form(f"addtask{job['id']}", clear_on_submit=True):
-                new_tasks = st.text_area("Add accomplishments (one per line)", key=f"newtask{job['id']}")
+                new_tasks = st.text_area("Add accomplishments", key=f"newtask{job['id']}",
+                    help="Each line becomes its own accomplishment. Hit Enter between them.")
                 new_tag = st.text_input("Tag for these (optional, e.g. leadership, IAM)", key=f"newtag{job['id']}")
                 if st.form_submit_button("Add") and new_tasks.strip():
                     st.session_state.setdefault("open_jobs", set()).add(job["id"])
@@ -696,9 +697,9 @@ with apps_tab:
 
             if a["ad_text"]:
                 with st.expander("View the job ad"):
-                    st.text(a["ad_text"])
                     if a["url"]:
                         st.markdown(f"[Open original posting]({a['url']})")
+                    st.text(a["ad_text"])
 
             _record = a["applied_snapshot"] or a["generated"]
             if a["applied_snapshot"]:
