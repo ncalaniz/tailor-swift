@@ -416,14 +416,23 @@ with profile_tab:
             start = c[2].text_input("Start", value=job["start_date"] or "", key=f"start{job['id']}")
             end = c[3].text_input("End", value=job["end_date"] or "", key=f"end{job['id']}")
             loc = c[4].text_input("Location", value=job["location"] or "", key=f"loc{job['id']}")
+            _levels = ["", "IC", "Manager", "Director", "Executive"]
+            _cur_sen = job["seniority"] if "seniority" in job.keys() else ""
+            seniority = st.selectbox(
+                "Seniority at this job", _levels,
+                index=_levels.index(_cur_sen) if _cur_sen in _levels else 0,
+                key=f"sen{job['id']}",
+                help="Sets how much this job gets compressed when tailoring — a Director role "
+                     "reads as a few bullets about owning the function; an IC role gets the "
+                     "detailed play-by-play. Leave blank to let the model judge from the title.")
             b = st.columns(2)
             if b[0].button("Save changes", key=f"savejob{job['id']}"):
                 st.session_state.setdefault("open_jobs", set()).add(job["id"])
-                store.update_job(job["id"], employer, role, start, end, loc)
+                store.update_job(job["id"], employer, role, start, end, loc, seniority)
                 st.success("Updated."); st.rerun()
             _job_dirty = (employer != (job["employer"] or "") or role != (job["role"] or "") or
                          start != (job["start_date"] or "") or end != (job["end_date"] or "") or
-                         loc != (job["location"] or ""))
+                         loc != (job["location"] or "") or seniority != _cur_sen)
             if _job_dirty:
                 b[0].caption("⚠ Unsaved — press Enter alone doesn't save these fields.")
             if b[1].button("Delete job (and its tasks)", key=f"deljob{job['id']}"):
@@ -530,6 +539,17 @@ with tailor_tab:
         st.markdown("### 1. Fit")
         if a["match_score"] is not None:
             st.metric("Match score", f"{a['match_score']} / 100")
+            with st.expander("What does this score mean?"):
+                st.caption("A rough rule of thumb, not a gate — the score reflects keyword and "
+                           "experience overlap, and a low one can mean 'wrong function entirely' "
+                           "or just 'missing a few keywords'. Read it alongside the real gaps below, "
+                           "which tell you WHICH kind it is.")
+                st.markdown(
+                    "- **Under 40** — usually skip, unless you have a specific reason to reach.\n"
+                    "- **40s–60s** — apply if you want it and can address the gaps head-on "
+                    "(cover letter, direct experience you can point to).\n"
+                    "- **65+** — strong match; the overlap is real."
+                )
             matched, missing, gaps = (_parse_list(a["matched"]),
                                       _parse_list(a["missing"]), _parse_list(a["gaps"]))
             if matched:
@@ -620,10 +640,16 @@ with tailor_tab:
             _lbl = lambda j: f"{j['employer']} — {j['role']}" if j["role"] else j["employer"]
             _in = [_lbl(j) for j in _jobs if j["id"] in _inc_ids]
             _out = [_lbl(j) for j in _jobs if j["id"] not in _inc_ids]
-            st.caption("In this resume: " + (", ".join(_in) if _in else "none"))
+            _bullets = lambda items: "\n".join("- " + md_safe(x) for x in items)
+            if _in:
+                st.caption("In this resume:")
+                st.markdown(_bullets(_in))
+            else:
+                st.caption("In this resume: none")
             if _out:
-                st.info("Left out of this resume: " + ", ".join(_out) + ". If any of those "
-                        "belong here, they were skipped as 'not relevant' — check that's right.")
+                st.warning("Left out of this resume — if any belong here, they were skipped as "
+                           "'not relevant', so check that's right:")
+                st.markdown(_bullets(_out))
 
             with st.expander("🔎 Export audit — trace every claim back to the bank"):
                 st.caption("One model call, on demand — traces each claim in the draft against "

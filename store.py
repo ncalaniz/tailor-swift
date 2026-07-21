@@ -100,10 +100,11 @@ def set_applied_snapshot(app_id, snapshot):
 def delete_application(app_id):
     _write("DELETE FROM applications WHERE id = ?;", (app_id,))
 
-def update_job(job_id, employer, role, start_date, end_date, location=""):
+def update_job(job_id, employer, role, start_date, end_date, location="", seniority=""):
     _write(
-        "UPDATE jobs SET employer = ?, role = ?, start_date = ?, end_date = ?, location = ? WHERE id = ?;",
-        (employer, role, start_date, end_date, location, job_id),
+        "UPDATE jobs SET employer = ?, role = ?, start_date = ?, end_date = ?, "
+        "location = ?, seniority = ? WHERE id = ?;",
+        (employer, role, start_date, end_date, location, seniority, job_id),
     )
 
 def save_analysis(app_id, score, matched, missing, gaps):

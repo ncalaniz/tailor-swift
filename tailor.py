@@ -46,6 +46,23 @@ def build_system():
         "When in doubt about who did something or what a number counts, use the weaker "
         "claim.\n\n"
         f"STYLE: tone = {tone}; bullet length = {length}; up to {maxb} bullets per job. "
+        "SENIORITY-AWARE COMPRESSION: some jobs carry a stated seniority level (shown as "
+        "'[seniority at this job: ...]' next to the job). Match the GRANULARITY of that job's "
+        "bullets to its level, drawing from that job's atomic tasks. A Director or Executive "
+        "job should read as a FEW bullets about owning outcomes and functions — raise the "
+        "ALTITUDE of each bullet (describe the outcome owned, not every sub-task) rather than "
+        "listing many small tasks, because a long list of granular tasks makes a senior role "
+        "read as junior. Consolidation is allowed ONLY when the atomic tasks are genuinely part "
+        "of ONE initiative; two DISTINCT accomplishments stay two bullets even at senior level. "
+        "Never merge two tasks such that one's result (a metric, a time saving) reads as the "
+        "outcome or purpose of the other — that both fabricates a causal link AND undersells the "
+        "task whose own point gets demoted to a supporting clause. Higher-altitude means fewer, "
+        "bigger bullets — NOT the same tasks blended together. An IC "
+        "or Manager job keeps more of the detailed, individual-contribution granularity, since "
+        "that specificity is the point at that level. This is CONSOLIDATION of real tasks, not "
+        "invention: never merge tasks in a way that implies a causal link the source doesn't "
+        "support (see the merge rule above), and never inflate scope to match a level. If a job "
+        "has no stated seniority, judge granularity from its title and tasks as usual. "
         f"TOTAL BUDGET: the resume may contain AT MOST {totalb} experience bullets in total "
         "(the headline and the summary bullets do NOT count — only the per-job bullets). This "
         "is a HARD CEILING, not a number to approximate: do not exceed it, and do not land "
@@ -139,7 +156,9 @@ def build_candidate_profile():
     """Assemble the stored resume + work history + tasks into one text block."""
     lines = ["WORK HISTORY AND TASKS (real experience only):"]
     for job in store.list_jobs():
-        lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}")
+        sen = job["seniority"] if "seniority" in job.keys() else ""
+        level = f"  [seniority at this job: {sen}]" if sen else ""
+        lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}{level}")
         for task in store.list_tasks(job["id"]):
             lines.append(f"- {task['text']}")
     return "\n".join(lines)

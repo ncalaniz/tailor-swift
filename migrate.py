@@ -1,18 +1,16 @@
-# migrate.py — one-time: rename application status values to actor-clear names.
+# migrate.py — one-time: add the per-job seniority column (item 5 / seniority-aware compression).
+# Run once with: python migrate.py
 import store
 
 conn = store.get_connection()
-renames = {
-    "Rejected": "Rejected by them",
-    "Offer": "Offer received",
-    "Ghosted": "No response",
-    "Passed": "I passed",
-}
 try:
-    for old, new in renames.items():
-        conn.execute("UPDATE applications SET status = ? WHERE status = ?;", (new, old))
-    conn.commit()
-    print("Renamed status values:", renames)
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(jobs);")}
+    if "seniority" not in cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN seniority TEXT DEFAULT '';")
+        conn.commit()
+        print("Added jobs.seniority column.")
+    else:
+        print("jobs.seniority already exists — nothing to do.")
 except Exception as e:
     print("Migration failed:", e)
 conn.close()

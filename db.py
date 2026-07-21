@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     role       TEXT,
     start_date TEXT,
     end_date   TEXT,
-    location   TEXT
+    location   TEXT,
+    seniority  TEXT DEFAULT ''
 );
 
 -- Accomplishment bank. Each task is tied to one job (its resume section).
