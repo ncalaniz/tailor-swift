@@ -8,6 +8,7 @@ def build_system():
     tone    = store.get_setting("style_tone", "Professional")
     length  = store.get_setting("style_length", "Medium")
     maxb     = store.get_setting("style_max_bullets", "4")
+    totalb   = store.get_setting("style_total_bullets", "18")
     metrics = store.get_setting("style_metrics", "yes") == "yes"
     custom  = store.get_setting("style_custom", "")
 
@@ -45,6 +46,20 @@ def build_system():
         "When in doubt about who did something or what a number counts, use the weaker "
         "claim.\n\n"
         f"STYLE: tone = {tone}; bullet length = {length}; up to {maxb} bullets per job. "
+        f"TOTAL BUDGET: the resume may contain AT MOST {totalb} experience bullets in total "
+        "(the headline and the summary bullets do NOT count — only the per-job bullets). This "
+        "is a HARD CEILING, not a number to approximate: do not exceed it, and do not land "
+        "'close to' it on the high side. Count the per-job bullets before finishing; if the "
+        f"total is above {totalb}, cut the least-relevant ones until it is not. "
+        "Allocate the budget by RELEVANCE to THIS job ad: the jobs whose real tasks most match "
+        "the ad get more bullets (up to the per-job cap), less-relevant jobs get fewer or drop "
+        "to zero bullets (just their dateline). "
+        f"If you have MORE than {totalb} genuinely relevant bullets, that is exactly when the "
+        "Trimmed report below applies — keep the best, cut the rest to fit, and list the "
+        "relevant ones you cut. This is a SELECTION task only: choose which real bullets to "
+        "include, never merge, reorder, or re-title jobs to hit the number, and never invent or "
+        "pad bullets to reach it. If the genuinely-relevant material is UNDER budget, stay "
+        f"under — {totalb} is a ceiling, not a quota. "
         "Start every bullet with a strong action verb. "
     )
     if metrics:
@@ -110,6 +125,13 @@ def build_system():
         "its [[JOB:id]] tag with ZERO bullets beneath it — the employer, title, and dates still "
         "render from the database. Only write bullets for the tasks that are actually relevant; "
         "it's fine and expected for some jobs to have 0 bullets and others to have several."
+        "\n\nTRIMMED REPORT: if — and ONLY if — you left out a bullet that IS genuinely relevant "
+        "to this ad purely because the total budget was full (not bullets you skipped as "
+        "irrelevant, which need no report), list them at the very END of your output under a "
+        "heading exactly '## Trimmed for length'. Under it, one line per cut bullet in the form "
+        "'[[JOB:id]] short description of the cut bullet' using the same job tag. This heading "
+        "must come AFTER every job section. If you didn't cut anything relevant for space, omit "
+        "the heading entirely — do not write it with 'none' or leave it empty."
     )
     return rules
 

@@ -95,6 +95,20 @@ def md_safe(text):
     """Escape $ so st.markdown doesn't swallow money figures as LaTeX math."""
     return (text or "").replace("$", "\\$")
 
+def _split_trimmed(text):
+    """Separate the '## Trimmed for length' report from the actual resume text.
+    Returns (resume_text, [trimmed_line, ...]). The trimmed lines are the cut-bullet
+    descriptions with the leading '- '/tag left as-is for display. Called before the
+    draft box and before every export so trimmed content is never rendered INTO the
+    resume it was cut from."""
+    lines = (text or "").split("\n")
+    for i, raw in enumerate(lines):
+        if raw.strip().lower() == "## trimmed for length":
+            resume = "\n".join(lines[:i]).rstrip()
+            trimmed = [l.strip() for l in lines[i + 1:] if l.strip()]
+            return resume, trimmed
+    return text, []
+
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME = "application/pdf"
 STATUSES = ["Not applied", "Applied", "Interviewing", "Offer received", "Hired",
@@ -186,6 +200,11 @@ def style_controls():
                               index=lengths.index(store.get_setting("style_length", "Medium")))
         max_bullets = st.slider("Max bullets per job", 2, 8,
                                 int(store.get_setting("style_max_bullets", "4")))
+        total_bullets = st.slider("Total bullets across resume", 10, 30,
+                                  int(store.get_setting("style_total_bullets", "18")),
+                                  help="Overall budget. The model spends it on the jobs most "
+                                       "relevant to each ad; less-relevant jobs get fewer bullets "
+                                       "or just their dateline. The per-job cap above still applies.")
         metrics = st.checkbox("Emphasize numbers/metrics where the real task supports it",
                               value=store.get_setting("style_metrics", "yes") == "yes")
         custom = st.text_area("Extra instructions (optional)",
@@ -195,6 +214,7 @@ def style_controls():
             for key, val in {
                 "style_tone": tone, "style_length": length,
                 "style_max_bullets": str(max_bullets),
+                "style_total_bullets": str(total_bullets),
                 "style_metrics": "yes" if metrics else "no", "style_custom": custom,
             }.items():
                 store.set_setting(key, val)
@@ -553,7 +573,10 @@ with tailor_tab:
         if d[0].button("Tailor / Re-tailor resume", type="primary"):
             with st.spinner("Writing your tailored resume..."):
                 result = tailor_resume(a["ad_text"])
+                result, _trimmed = _split_trimmed(result)
                 result = _sort_draft_text(result)
+                if _trimmed:
+                    result = result.rstrip() + "\n\n## Trimmed for length\n" + "\n".join(_trimmed)
                 store.save_tailored_result(a["id"], result)
             st.session_state[f"edver{a['id']}"] = st.session_state.get(f"edver{a['id']}", 0) + 1
             st.rerun()
@@ -569,9 +592,17 @@ with tailor_tab:
                        "what actually happened. Leave the [[JOB:1]] tags alone — those pull your "
                        "real employer, title, and dates from the database at export.")
 
+            _resume_only, _trimmed = _split_trimmed(a["generated"])
             _edver = st.session_state.get(f"edver{a['id']}", 0)
-            draft = st.text_area("Tailored draft", value=a["generated"], height=420,
+            draft = st.text_area("Tailored draft", value=_resume_only, height=420,
                                  key=f"ed{a['id']}_{_edver}", label_visibility="collapsed")
+            if _trimmed:
+                with st.expander(f"✂ Trimmed for length ({len(_trimmed)}) — relevant bullets cut to fit the budget"):
+                    st.caption("These were relevant but didn't fit your total-bullet budget. "
+                               "Raise the budget under Writing style, or paste one back into the "
+                               "draft above if it belongs.")
+                    for t in _trimmed:
+                        st.markdown("- " + md_safe(re.sub(r"^\[\[JOB:\d+\]\]\s*", "", t).lstrip("- ")))
 
             s = st.columns([1, 3])
             if s[0].button("Save edits"):
