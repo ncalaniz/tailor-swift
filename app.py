@@ -679,6 +679,7 @@ with tailor_tab:
         if d[0].button("Tailor / Re-tailor resume", type="primary"):
             with st.spinner("Writing your tailored resume..."):
                 result = tailor_resume(a["ad_text"])
+                st.session_state.pop(f"audit{a['id']}", None)
                 result, _trimmed = _split_trimmed(result)
                 result = _sort_draft_text(result)
                 if _trimmed:
