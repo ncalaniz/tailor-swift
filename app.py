@@ -10,6 +10,14 @@ from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
 
+@st.cache_data(show_spinner=False)
+def _cached_docx(text):
+    return _safe_export(build_docx, text)
+
+@st.cache_data(show_spinner=False)
+def _cached_pdf(text):
+    return _safe_export(build_pdf, text)
+
 def _safe_export(build_fn, text):
     """Run a build_docx/build_pdf call; never let a bad export crash the page.
     Returns (bytes_or_None, error_message_or_None)."""
@@ -483,7 +491,9 @@ with profile_tab:
 
     for job in sorted(store.list_jobs(), key=_job_sort_key):
         tasks = store.list_tasks(job["id"])
-        with st.expander(f"{job['employer']} — {job['role']}  ({len(tasks)} tasks)",
+        _dates = f"{job['start_date']} – {job['end_date']}" if job["start_date"] else ""
+        _loc = f" · {job['location']}" if job["location"] else ""
+        with st.expander(f"{job['employer']} — {job['role']}  ({_dates}{_loc} · {len(tasks)} tasks)",
                          expanded=(job["id"] in st.session_state.get("open_jobs", set()))):
             # --- job details ---
             c = st.columns(5)
@@ -752,8 +762,8 @@ with tailor_tab:
             st.markdown(_preview(md_safe(draft)))
 
             fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
-            docx_bytes, docx_err = _safe_export(build_docx, draft)
-            pdf_bytes, pdf_err = _safe_export(build_pdf, draft)
+            docx_bytes, docx_err = _cached_docx(draft)
+            pdf_bytes, pdf_err = _cached_pdf(draft)
             dl = st.columns(2)
             if docx_bytes is not None:
                 dl[0].download_button("⬇ Word (.docx)", data=docx_bytes,
@@ -841,19 +851,24 @@ with apps_tab:
                     st.text(a["applied_snapshot"])
             if _record:
                 fname = f"Resume - {a['company'] or 'role'} - {a['title'] or ''}".strip().replace("/", "-")
-                docx_bytes, docx_err = _safe_export(build_docx, _record)
-                pdf_bytes, pdf_err = _safe_export(build_pdf, _record)
-                dl = st.columns(2)
-                if docx_bytes is not None:
-                    dl[0].download_button("⬇ Word", data=docx_bytes,
-                                          file_name=fname + ".docx", mime=DOCX_MIME, key=f"dl{a['id']}")
+                if not st.session_state.get(f"prep{a['id']}"):
+                    if st.button("Prepare downloads", key=f"prepbtn{a['id']}"):
+                        st.session_state[f"prep{a['id']}"] = True
+                        st.rerun()
                 else:
-                    dl[0].error(f"Word export failed: {docx_err}")
-                if pdf_bytes is not None:
-                    dl[1].download_button("⬇ PDF", data=pdf_bytes,
-                                          file_name=fname + ".pdf", mime=PDF_MIME, key=f"pdf{a['id']}")
-                else:
-                    dl[1].error(f"PDF export failed: {pdf_err}")
+                    docx_bytes, docx_err = _cached_docx(_record)
+                    pdf_bytes, pdf_err = _cached_pdf(_record)
+                    dl = st.columns(2)
+                    if docx_bytes is not None:
+                        dl[0].download_button("⬇ Word", data=docx_bytes,
+                                              file_name=f"{fname}.docx", key=f"dx{a['id']}")
+                    else:
+                        dl[0].error(f"Word export failed: {docx_err}")
+                    if pdf_bytes is not None:
+                        dl[1].download_button("⬇ PDF", data=pdf_bytes,
+                                              file_name=f"{fname}.pdf", key=f"pf{a['id']}")
+                    else:
+                        dl[1].error(f"PDF export failed: {pdf_err}")
 
             notes = st.text_area("Notes", value=a["notes"] or "", key=f"nt{a['id']}")
             if st.button("Save notes", key=f"sn{a['id']}"):
