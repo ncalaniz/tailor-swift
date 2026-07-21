@@ -306,12 +306,12 @@ st.caption("Tailor Swift — resumes built on your real experience.")
 _setup_done = bool(_name and store.get_setting("base_resume", "").strip())
 if _setup_done:
     tailor_tab, apps_tab, profile_tab, setup_tab = st.tabs(
-        ["Tailor", "Applications", "Profile", "Setup"]
+        ["Tailor", "Applications", "Work History", "Resume Basics"]
     )
 else:
-    st.info("👋 New here? Start in the Setup tab, then add your base resume and work history under Profile.")
+    st.info("👋 New here? Start in Resume Basics, then add your work history and tasks under Work History.")
     setup_tab, profile_tab, tailor_tab, apps_tab = st.tabs(
-        ["Setup", "Profile", "Tailor", "Applications"]
+        ["Resume Basics", "Work History", "Tailor", "Applications"]
     )
 
 # ================= Setup (contact details only) =================
@@ -661,7 +661,7 @@ with tailor_tab:
                 pick = st.selectbox("Add to which job?", list(add_labels.keys()), key="tailor_addjob")
                 _braindump_widget(add_labels[pick], "tailor_")
             else:
-                st.info("Add a job under Profile first.")
+                st.info("Add a job under Work History first.")
 
         # Step 3 — decide
         st.markdown("### 3. Decide")
