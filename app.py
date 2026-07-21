@@ -109,6 +109,55 @@ def _split_trimmed(text):
             return resume, trimmed
     return text, []
 
+def _parse_draft_sections(text):
+    """Split a resume draft into (preamble_lines, [(job_id, [body_lines])]) using the same
+    [[JOB:id]] regex the preview and exporters use. Lets the editor show real headings as
+    read-only labels while keeping the tags out of the user's hands."""
+    preamble, sections, current = [], [], None
+    for raw in text.split("\n"):
+        m = re.match(r"^\[\[JOB:(\d+)\]\]\s*$", raw.strip())
+        if m:
+            current = []
+            sections.append((int(m.group(1)), current))
+        else:
+            (current if current is not None else preamble).append(raw)
+    return preamble, sections
+
+def _reassemble_draft(preamble, sections):
+    """Rebuild the tag-bearing string that export / audit / the P7 report all expect.
+    Byte-identical in structure to what tailor_resume produced, so nothing downstream
+    can tell the draft was edited section-by-section instead of in one box."""
+    out = list(preamble)
+    for job_id, lines in sections:
+        out.append(f"[[JOB:{job_id}]]")
+        out.extend(lines)
+    return "\n".join(out)
+
+def _structured_draft_editor(app_id, resume_text, edver):
+    """Item 3 / option (c): headings render as read-only labels (facts from the DB), only
+    the bullets are editable (prose). Returns the reassembled draft string. Makes the
+    facts-vs-prose split visible instead of explained by a caption the tags kept undermining."""
+    from export import _job_heading_parts
+    preamble, sections = _parse_draft_sections(resume_text)
+
+    # preamble (headline + summary) stays a normal editable text box — no tags in it
+    pre_text = "\n".join(preamble).strip()
+    new_pre = st.text_area("Headline & summary", value=pre_text,
+                           key=f"edpre{app_id}_{edver}", height=180)
+
+    new_sections = []
+    for job_id, lines in sections:
+        title, dates, _loc = _job_heading_parts(job_id)
+        heading = title + (f" ({dates})" if dates else "")
+        st.markdown(f"**{md_safe(heading)}**  ·  *from your profile — not editable here*")
+        body = "\n".join(lines).strip()
+        new_body = st.text_area(f"bullets for {heading}", value=body,
+                                key=f"edjob{app_id}_{job_id}_{edver}", height=140,
+                                label_visibility="collapsed")
+        new_sections.append((job_id, new_body.split("\n")))
+
+    return _reassemble_draft(new_pre.split("\n"), new_sections)
+
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME = "application/pdf"
 STATUSES = ["Not applied", "Applied", "Interviewing", "Offer received", "Hired",
@@ -636,13 +685,12 @@ with tailor_tab:
         if a["generated"]:
             st.markdown("### 4. Review and edit your tailored resume")
             st.caption("Read every line before it becomes a PDF. Verify every number against "
-                       "what actually happened. Leave the [[JOB:1]] tags alone — those pull your "
-                       "real employer, title, and dates from the database at export.")
+                       "what actually happened. Job headings come straight from your profile and "
+                       "aren't editable here — edit them under the Profile tab.")
 
             _resume_only, _trimmed = _split_trimmed(a["generated"])
             _edver = st.session_state.get(f"edver{a['id']}", 0)
-            draft = st.text_area("Tailored draft", value=_resume_only, height=420,
-                                 key=f"ed{a['id']}_{_edver}", label_visibility="collapsed")
+            draft = _structured_draft_editor(a["id"], _resume_only, _edver)
             if _trimmed:
                 with st.expander(f"✂ Trimmed for length ({len(_trimmed)}) — relevant bullets cut to fit the budget"):
                     st.caption("These were relevant but didn't fit your total-bullet budget. "
