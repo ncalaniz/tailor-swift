@@ -351,16 +351,38 @@ BRAINDUMP_SYS = (
     "Split distinct accomplishments "
     "into separate entries. Start each with a strong action verb. Keep any numbers they gave "
     "exactly as given. Respond with ONLY a valid JSON array of strings, no fences, no commentary. "
-    'Example: ["Centralized identity and access management for operations, consolidating '
-    'permissioning under a single owned function", "Built a Jira workflow for structured '
-    'access-change requests"]'
+    'Split distinct accomplishments into separate entries as before. '
+    "THEN, SEPARATELY, look for SCALE you could have quantified but didn't. If a task you drafted "
+    "mentions something countable — teams, people affected, dollar spend, volume, time saved, "
+    "number of systems — and they gave a vague or missing number, generate a short QUESTION "
+    "inviting them to fill it in. STRICT LIMIT on questions: only ask them to QUANTIFY work they "
+    "ALREADY described. Never ask a question that fishes for NEW work, new responsibilities, or a "
+    "bigger role ('did you also manage the team?', 'were you the lead?') — that invites inflation. "
+    "The test: a good question makes an existing true claim more precise; a bad question adds a "
+    "claim they didn't make. If nothing needs quantifying, return an empty questions list. "
+    "Respond with ONLY a valid JSON object, no fences: "
+    '{"tasks": ["...", "..."], "questions": ["You mentioned 20+ teams — do you know the annual '
+    'incentive spend that covered?", "..."]}. '
+    'Example: {"tasks": ["Centralized identity and access management for operations, '
+    'consolidating permissioning under a single owned function", "Built a Jira workflow for '
+    'structured access-change requests"], "questions": ["You said the RBAC model spanned many '
+    'roles — roughly how many roles, and how many employees did it govern?"]}'
 )
 
 def braindump_to_tasks(dump_text):
-    """Turn a messy description into a list of clean task strings."""
+    """Turn a messy description into clean task strings plus optional follow-up questions.
+    Returns (tasks, questions). Tolerates either the new {"tasks","questions"} object or a
+    legacy bare array, so a stray old-format response never crashes the widget."""
     raw = ask_claude(dump_text, system=BRAINDUMP_SYS, model="claude-sonnet-4-6", max_tokens=1000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     result = json.loads(clean)
-    if not isinstance(result, list):
-        raise ValueError("Expected a list of tasks")
-    return [str(t).strip() for t in result if str(t).strip()]
+    if isinstance(result, list):                       # legacy bare-array shape
+        tasks, questions = result, []
+    elif isinstance(result, dict):
+        tasks = result.get("tasks", [])
+        questions = result.get("questions", [])
+    else:
+        raise ValueError("Expected a tasks/questions object or a list of tasks")
+    tasks = [str(t).strip() for t in tasks if str(t).strip()]
+    questions = [str(q).strip() for q in questions if str(q).strip()]
+    return tasks, questions

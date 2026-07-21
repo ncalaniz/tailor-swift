@@ -139,11 +139,37 @@ def _braindump_widget(job_id, key_ns):
         if dump.strip():
             with st.spinner("Turning your words into task entries..."):
                 try:
-                    st.session_state[f"drafts_{key_ns}{job_id}"] = braindump_to_tasks(dump)
+                    _tasks, _questions = braindump_to_tasks(dump)
+                    st.session_state[f"drafts_{key_ns}{job_id}"] = _tasks
+                    st.session_state[f"dumpq_{key_ns}{job_id}"] = _questions
                 except Exception as e:
                     st.error(f"Couldn't parse that — try again. ({e})")
         else:
             st.warning("Write something first.")
+
+    _questions = st.session_state.get(f"dumpq_{key_ns}{job_id}", [])
+    if _questions:
+        with st.container():
+            st.markdown("**A few things you could make more specific** — optional; answer any that "
+                        "you know, or skip:")
+            st.caption("These only ask you to put numbers on work you already described — answer "
+                       "in your own words below and I'll fold them in. Nothing is added unless you "
+                       "say it.")
+            for q in _questions:
+                st.markdown("- " + md_safe(q))
+            _ans = st.text_area("Answers (optional)", key=f"dumpans_{key_ns}{job_id}",
+                                placeholder="e.g. the incentive spend was about $1M across 20 teams")
+            if st.button("Add these details", key=f"dumpansbtn_{key_ns}{job_id}") and _ans.strip():
+                st.session_state.setdefault("open_jobs", set()).add(job_id)
+                with st.spinner("Folding in your answers..."):
+                    try:
+                        _combined = (dump + "\n\nAdditional detail: " + _ans).strip()
+                        _tasks2, _q2 = braindump_to_tasks(_combined)
+                        st.session_state[f"drafts_{key_ns}{job_id}"] = _tasks2
+                        st.session_state[f"dumpq_{key_ns}{job_id}"] = _q2
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Couldn't parse that — try again. ({e})")
 
     drafts = st.session_state.get(f"drafts_{key_ns}{job_id}", [])
     if drafts:
@@ -163,6 +189,7 @@ def _braindump_widget(job_id, key_ns):
                 if k and e.strip():
                     store.add_task(job_id, e.strip()); n += 1
             st.session_state.pop(f"drafts_{key_ns}{job_id}", None)
+            st.session_state.pop(f"dumpq_{key_ns}{job_id}", None)
             st.session_state[f"dumpgen_{key_ns}{job_id}"] = dump_counter + 1
             st.success(f"Saved {n} tasks."); st.rerun()
 
