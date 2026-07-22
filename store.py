@@ -54,6 +54,31 @@ def set_task_tag(task_id, tag):
 def update_task(task_id, text):
     _write("UPDATE tasks SET text = ? WHERE id = ?;", (text, task_id))
 
+def set_task_group(task_ids, group_id):
+    """Assign a set of tasks to a group (or pass group_id=None to ungroup them).
+    A shared group_id means the tailor may compose these atoms into one bullet."""
+    conn = get_connection()
+    conn.executemany(
+        "UPDATE tasks SET group_id = ? WHERE id = ?;",
+        [(group_id, tid) for tid in task_ids],
+    )
+    conn.commit()
+    conn.close()
+
+def next_group_id():
+    """Return an unused group id (max existing + 1, starting at 1)."""
+    rows = _read("SELECT MAX(group_id) AS m FROM tasks;")
+    top = rows[0]["m"] if rows and rows[0]["m"] is not None else 0
+    return top + 1
+
+def list_task_groups(job_id):
+    """Return {group_id: [task_row, ...]} for one job's GROUPED tasks only
+    (ungrouped tasks are groups of one and handled separately by callers)."""
+    groups = {}
+    for t in _read("SELECT * FROM tasks WHERE job_id = ? AND group_id IS NOT NULL ORDER BY group_id, id;", (job_id,)):
+        groups.setdefault(t["group_id"], []).append(t)
+    return groups
+
 def list_tasks(job_id=None):
     if job_id is None:
         return _read("SELECT * FROM tasks ORDER BY id;")

@@ -55,16 +55,21 @@ def build_system():
         "ALTITUDE of each bullet (describe the outcome owned, not every sub-task) rather than "
         "listing many small tasks, because a long list of granular tasks makes a senior role "
         "read as junior. RAISING ALTITUDE MEANS DESCRIBING ONE TASK AT A HIGHER LEVEL — it does "
-        "NOT mean combining tasks. Each bullet you write must trace to EXACTLY ONE stored task. "
-        "Before writing a bullet, name the single task it comes from; if two stored tasks both "
-        "feed one bullet, that is a blend — split it into two bullets. This holds even when two "
-        "tasks look like 'one initiative' to you: 'built reporting infrastructure' and 'built an "
-        "AI dashboard' are TWO tasks and TWO bullets even though both are 'reporting', because "
-        "the bank stores them separately and combining them implies a single unified effort the "
-        "bank does not describe. The ONLY exception is when a SINGLE stored task is itself "
-        "long enough to shorten — you may compress ONE task's wording, never fuse TWO. When you "
-        "feel the pull to join two tasks with 'and' for a tighter line, that pull is the blend "
-        "this rule forbids: write two bullets, or pick the stronger single task. Never merge two "
+        "NOT mean combining tasks. Each bullet you write must trace to EXACTLY ONE stored task OR "
+        "ONE sanctioned GROUP. Grouping works like this: some tasks are tagged with a marker like "
+        "'[[GROUP:3]]' at the end. Tasks sharing the SAME group number have been explicitly "
+        "confirmed by the candidate as ONE accomplishment, and you MAY compose them together into "
+        "a single bullet — that is the ONLY case where combining tasks is allowed. A task with NO "
+        "group marker is its own group of one and may NOT be combined with anything. Before writing "
+        "a bullet, identify the single task or single group it comes from; if you are combining "
+        "tasks that do NOT share a group marker, that is a blend — split them. This holds even when "
+        "two ungrouped tasks look like 'one initiative' to you: 'built reporting infrastructure' and "
+        "'built an AI dashboard' with no shared group marker are TWO bullets even though both are "
+        "'reporting', because the candidate did not group them and combining implies a unified "
+        "effort they did not confirm. You may compress within a single task's wording or within a "
+        "sanctioned group, never fuse across groups. When you feel the pull to join two UNGROUPED "
+        "tasks with 'and' for a tighter line, that pull is the blend this rule forbids: write two "
+        "bullets, or pick the stronger single task. Never merge two "
         "tasks such that one's result (a metric, a time saving) reads as the "
         "outcome or purpose of the other — that both fabricates a causal link AND undersells the "
         "task whose own point gets demoted to a supporting clause. Higher-altitude means fewer, "
@@ -143,7 +148,8 @@ def build_system():
         "followed by 3-4 bullet points (each starting with '- '), not a paragraph — "
         "one distinct, independently-checkable claim per bullet. "
         "\n\nONE-JOB-PER-BULLET (structural anti-blend rule — this is a HARD constraint, not a "
-        "preference): each summary bullet must draw its facts from EXACTLY ONE stored task at ONE job. Before writing "
+        "preference): each summary bullet must draw its facts from EXACTLY ONE stored task (or ONE sanctioned "
+        "group of tasks sharing a [[GROUP:n]] marker) at ONE job. Before writing "
         "a summary bullet, identify the single task it comes from; if you cannot name one task that "
         "backs the whole bullet, the bullet is blending and must be split. This applies within a single "
         "job too — two tasks at the same employer ('partnered with CRM team' and 'drove automation "
@@ -189,12 +195,15 @@ def build_candidate_profile():
         level = f"  [seniority at this job: {sen}]" if sen else ""
         lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}{level}")
         for task in store.list_tasks(job["id"]):
-            lines.append(f"- {task['text']}")
+            gid = task["group_id"] if "group_id" in task.keys() else None
+            marker = f" [[GROUP:{gid}]]" if gid is not None else ""
+            lines.append(f"- {task['text']}{marker}")
     return "\n".join(lines)
 
 def tailor_resume(job_ad):
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
-    return ask_claude(prompt, system=build_system(), model=MODEL, max_tokens=1500)
+    raw = ask_claude(prompt, system=build_system(), model=MODEL, max_tokens=1500)
+    return re.sub(r"\s*\[\[GROUP:\d+\]\]", "", raw)   # strip any leaked group markers
 
 ANALYZE_SYS = (
     "You are a precise resume-matching analyst. Compare the candidate's real resume and logged "
@@ -262,7 +271,11 @@ EXPORT_AUDIT_SYS = (
     "- attribution: team work rewritten as first-person individual work, or a contributor role "
     "upgraded to owner/founder/sole leader.\n"
     "- blended: two distinct tasks combined into one bullet in a way that implies one caused "
-    "the other's outcome, when the bank doesn't support that connection.\n"
+    "the other's outcome, when the bank doesn't support that connection. IMPORTANT EXCEPTION: "
+    "tasks marked with the SAME group tag (e.g. '[[GROUP:3]]') have been explicitly confirmed by "
+    "the candidate as ONE accomplishment. Combining tasks that share a group tag into one bullet "
+    "is SANCTIONED and is NOT a blend — do not flag it. Only flag as blended when the combined "
+    "tasks do NOT share a group tag.\n"
     "- connotation: a word that is technically true and not escalated, but whose common meaning "
     "outruns the underlying task, so a reader would understand something bigger or different "
     "than what actually happened. Watch especially for: 'compliance', 'owned', 'led', 'audited', "
