@@ -5,7 +5,7 @@ import streamlit as st
 import json
 import datetime
 import store
-from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit, bank_lint_tier2
+from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit, bank_lint_tier2, coach_review_task, coach_apply_answers
 from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
@@ -193,6 +193,92 @@ def _parse_list(text):
         return json.loads(text) if text else []
     except Exception:
         return []
+
+def _coach_widget(job):
+    """TASK-QUALITY-COACH on-demand surface: review one job's tasks for weakness,
+    show a no-invention Tier-1 rewrite the user can accept, and a Tier-2
+    'go further' path that asks for missing facts then folds ONLY those in."""
+    jid = job["id"]
+    seniority = job["seniority"] if "seniority" in job.keys() else ""
+    with st.expander("✨ Coach my tasks — flag weak ones and help me strengthen them"):
+        st.caption("Reviews this job's tasks for the three things that make a bullet weak: no "
+                   "numbers, too junior for the role, or no outcome. Suggests a stronger version "
+                   "using ONLY what's already there — and if that's not enough, asks you for the "
+                   "missing facts. Never invents. Suggestions only; nothing changes unless you accept.")
+        if st.button("Review this job's tasks", key=f"coach_run{jid}"):
+            reviews = {}
+            with st.spinner("Coaching..."):
+                for t in store.list_tasks(jid):
+                    try:
+                        reviews[t["id"]] = coach_review_task(t["text"], seniority)
+                    except Exception as e:
+                        reviews[t["id"]] = {"error": str(e)}
+            st.session_state[f"coach_reviews{jid}"] = reviews
+
+        reviews = st.session_state.get(f"coach_reviews{jid}", {})
+        if not reviews:
+            return
+        # re-fetch tasks so text is current after any accepts
+        cur = {t["id"]: t for t in store.list_tasks(jid)}
+        weak_found = False
+        for tid, rev in reviews.items():
+            if tid not in cur:
+                continue
+            if rev.get("error"):
+                st.error(f"Couldn't review one task: {rev['error']}")
+                continue
+            if not rev.get("weak"):
+                continue
+            weak_found = True
+            task = cur[tid]
+            axes = ", ".join(rev.get("axes", [])) or "weak"
+            st.markdown(f"**Weak task** ({axes}):")
+            st.caption(md_safe(task["text"]))
+            if st.button("🗑 Delete this task instead", key=f"coach_del{tid}"):
+                store.delete_task(tid)
+                st.session_state.setdefault("open_jobs", set()).add(jid)
+                st.rerun()
+            tier1 = rev.get("tier1", "").strip()
+            note = rev.get("tier1_note", "").strip()
+            if tier1 and tier1 != task["text"]:
+                st.markdown(f"**Suggested (using only what's here):** {md_safe(tier1)}")
+                if note:
+                    st.caption(md_safe(note))
+                if st.button("Accept this rewrite", key=f"coach_accept{tid}"):
+                    store.update_task(tid, tier1)
+                    st.session_state.setdefault("open_jobs", set()).add(jid)
+                    st.rerun()
+            else:
+                st.caption(note or "Can't strengthen this without more detail — see the questions below.")
+            qs = rev.get("questions", [])
+            if qs:
+                with st.expander("Go further — answer what you know, skip the rest"):
+                    st.caption("These only ask you to add facts you already have. Anything you "
+                               "answer gets folded in; anything you skip is left out — nothing invented.")
+                    for q in qs:
+                        st.markdown(f"- {md_safe(q)}")
+                    ans = st.text_area("Your answers", key=f"coach_ans{tid}",
+                                       placeholder="e.g. the contract was ~$2M/year and renewal avoided a mid-quarter migration")
+                    if st.button("Strengthen with these details", key=f"coach_apply{tid}"):
+                        if ans.strip():
+                            with st.spinner("Rewriting with your facts..."):
+                                try:
+                                    stronger = coach_apply_answers(task["text"], ans.strip())
+                                    st.session_state[f"coach_pending{tid}"] = stronger
+                                except Exception as e:
+                                    st.error(f"Rewrite failed: {e}")
+                    pending = st.session_state.get(f"coach_pending{tid}")
+                    if pending:
+                        st.markdown(f"**Strengthened:** {md_safe(pending)}")
+                        st.caption("Check every fact here traces to something you said. Accept only if true.")
+                        if st.button("Accept strengthened version", key=f"coach_acceptv2{tid}"):
+                            store.update_task(tid, pending)
+                            st.session_state.pop(f"coach_pending{tid}", None)
+                            st.session_state.setdefault("open_jobs", set()).add(jid)
+                            st.rerun()
+            st.divider()
+        if not weak_found:
+            st.success("No weak tasks found for this job — these all earn their place.")
 
 def _braindump_widget(job_id, key_ns):
     """Reusable 'describe what you did, I'll draft tasks' flow. key_ns keeps widget keys
@@ -582,6 +668,7 @@ with profile_tab:
                         store.add_task(job["id"], ln, new_tag.strip())
                     st.rerun()
 
+            _coach_widget(job)
             _braindump_widget(job["id"], "profile_")
 
     with st.form("add_job", clear_on_submit=True):

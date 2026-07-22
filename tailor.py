@@ -423,3 +423,88 @@ def braindump_to_tasks(dump_text):
     tasks = [str(t).strip() for t in tasks if str(t).strip()]
     questions = [str(q).strip() for q in questions if str(q).strip()]
     return tasks, questions
+
+# ============================================================================
+# TASK-QUALITY-COACH (spec'd 7/22) — flags weak tasks + strengthens them without
+# inventing. Two tiers: Tier 1 rewrites using ONLY facts already in the task;
+# Tier 2 asks for missing facts, then folds in ONLY the user's answer.
+# ============================================================================
+
+COACH_SYS = (
+    "You are a resume-task quality coach. You are given ONE task (a resume bullet fact) from the "
+    "candidate's bank, plus the seniority level of the job it belongs to. Judge whether the task is "
+    "WEAK — i.e. genuinely unlikely to earn its place on a resume at that seniority. A task is weak ONLY "
+    "if it is thin on ALL of these at once:\n"
+    "  - no number/scale AND no meaningful scope (a task naming real scope like '3,000 employees', "
+    "'14 sites', 'three domains', '30+ roles' is NOT weak on this axis even with no %/$).\n"
+    "  - AND no outcome or implied outcome (a task that names what it enabled/prevented/produced, OR "
+    "where the outcome is obvious from the action, is NOT weak on this axis).\n"
+    "  - AND low altitude for the role (a bare administrative action like 'renewed a contract', "
+    "'attended meetings', 'updated the tracker' reading junior for a Director).\n"
+    "BE VERY CONSERVATIVE. Flag a task WEAK only when it is thin on scope AND thin on outcome AND low "
+    "altitude — all three. If a task has real scope OR a real (or clearly-implied) outcome, it is NOT "
+    "weak, FULL STOP, even with no dollar figure. Most tasks in a strong bank are NOT weak; expect to "
+    "flag only the genuinely thin ones (like a bare 'renewed the contract' with no scope or stakes). "
+    "When in doubt, do NOT flag — a false flag on a good task trains the user to inflate, which is worse "
+    "than a miss.\n\n"
+    "Then produce a TIER-1 REWRITE. ABSOLUTE RULE — THE TIER-1 REWRITE MAY NOT ADD ANY FACT NOT PRESENT "
+    "IN THE ORIGINAL TASK. No invented numbers, scope, outcomes, or context. SECOND RULE — DO NOT INFLATE "
+    "ALTITUDE. Strengthen by choosing a more precise verb and surfacing an outcome the task ALREADY "
+    "STATES OR DIRECTLY IMPLIES — but do NOT reach for grander framing words ('enterprise', 'strategic', "
+    "'end-to-end', 'governance', 'transformational') unless that word is literally supported by the task. "
+    "A rewrite that sounds one notch more important than the original is a FAILURE, even if technically "
+    "honest — it drifts the resume toward inflation. Aim for 'the same fact, said precisely', not 'the "
+    "same fact, said grander'. If the task is 'renewed the Salesforce contract' with no other detail, the Tier-1 rewrite "
+    "CANNOT say a dollar amount, cannot say what it prevented, cannot name scope — because none of that is "
+    "in the task. In that case the honest Tier-1 rewrite is barely different from the original, and that "
+    "is CORRECT: if there's nothing to work with, say so via the questions, don't fabricate. If you cannot "
+    "improve the task without inventing, return the original unchanged as the tier1 and set "
+    "tier1_note to explain that strengthening requires facts only the candidate can supply.\n\n"
+    "Then produce TIER-2 QUESTIONS: specific questions whose answers WOULD let you strengthen the task, "
+    "each targeting a real gap (the missing number, the missing outcome, the missing scope). These are "
+    "invitations, never assumptions — phrase them so a 'don't know' is a fine answer. Do NOT ask leading "
+    "questions that presume facts ('how did renewing it save the company millions?' assumes millions).\n\n"
+    "Respond with ONLY a JSON object, no fences, no preamble:\n"
+    "{\"weak\": true/false, \"axes\": [\"NO_QUANT\",...], \"tier1\": \"the safe rewrite (or original if "
+    "nothing can be done without inventing)\", \"tier1_note\": \"one line: what you changed, or why you "
+    "couldn't\", \"questions\": [\"...\",\"...\"]}"
+)
+
+def coach_review_task(task_text, seniority=""):
+    """Assess one task's strength and return a dict with the weak flag, axes, a
+    no-invention Tier-1 rewrite, and Tier-2 questions. Never fabricates facts."""
+    level = f"JOB SENIORITY: {seniority}\n\n" if seniority else "JOB SENIORITY: (not stated — judge from the task)\n\n"
+    prompt = f"{level}TASK:\n{task_text}"
+    raw = ask_claude(prompt, system=COACH_SYS, model=MODEL, max_tokens=800)
+    clean = raw.strip().replace("```json", "").replace("```", "").strip()
+    try:
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        raise ValueError("The coach response got cut off before finishing — try running it again.")
+    if not isinstance(result, dict):
+        raise ValueError("Expected a coach assessment object")
+    result.setdefault("weak", False)
+    result.setdefault("axes", [])
+    result.setdefault("tier1", task_text)
+    result.setdefault("tier1_note", "")
+    result.setdefault("questions", [])
+    return result
+
+COACH_APPLY_SYS = (
+    "You are strengthening ONE resume task using facts the candidate just supplied in answer to your "
+    "questions. You are given the ORIGINAL task and the candidate's ANSWERS.\n\n"
+    "ABSOLUTE RULE — USE ONLY FACTS THAT APPEAR IN THE ORIGINAL TASK OR IN THE CANDIDATE'S ANSWERS. "
+    "Invent nothing. If an answer is vague or says 'don't know', do NOT fill the gap with a plausible "
+    "guess — simply leave that detail out. Do not round a candidate's '~200' up to 'hundreds' if that "
+    "overstates; mirror their hedging. Do not add outcomes, scope, or numbers the candidate did not "
+    "state. The rewrite may combine the original task with the supplied facts and raise the framing's "
+    "altitude, but every concrete claim must trace to the task or an answer.\n\n"
+    "Respond with ONLY the rewritten task text — one line, no JSON, no fences, no preamble, no quotes."
+)
+
+def coach_apply_answers(task_text, answers_text):
+    """Fold the candidate's answers into a stronger version of the task, using
+    ONLY the original facts plus what they supplied. Never invents."""
+    prompt = f"ORIGINAL TASK:\n{task_text}\n\nCANDIDATE'S ANSWERS:\n{answers_text}"
+    raw = ask_claude(prompt, system=COACH_APPLY_SYS, model=MODEL, max_tokens=500)
+    return raw.strip().replace("```", "").strip()
