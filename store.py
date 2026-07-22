@@ -65,6 +65,13 @@ def set_task_group(task_ids, group_id):
     conn.commit()
     conn.close()
 
+def set_task_group_label(task_id, label):
+    """Set or clear one task's group. Empty label = ungrouped. Tasks sharing a
+    label are one sanctioned accomplishment. (Stored in group_id; SQLite doesn't
+    enforce the INTEGER type, so text labels are fine.)"""
+    _write("UPDATE tasks SET group_id = ? WHERE id = ?;",
+           (label.strip() or None, task_id))
+
 def next_group_id():
     """Return an unused group id (max existing + 1, starting at 1)."""
     rows = _read("SELECT MAX(group_id) AS m FROM tasks;")

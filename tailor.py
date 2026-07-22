@@ -2,6 +2,7 @@
 import store
 from ai import ask_claude
 import json
+import re
 
 MODEL = "claude-sonnet-4-6"  # one source of truth; see MODEL-CONST. sonnet-5 is newer but bans temperature (400) — stay here while SCORE-STEADY wants that lever
 
@@ -203,7 +204,7 @@ def build_candidate_profile():
 def tailor_resume(job_ad):
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
     raw = ask_claude(prompt, system=build_system(), model=MODEL, max_tokens=1500)
-    return re.sub(r"\s*\[\[GROUP:\d+\]\]", "", raw)   # strip any leaked group markers
+    return re.sub(r"\s*\[\[GROUP:[^\]]+\]\]", "", raw)   # strip any leaked group markers
 
 ANALYZE_SYS = (
     "You are a precise resume-matching analyst. Compare the candidate's real resume and logged "

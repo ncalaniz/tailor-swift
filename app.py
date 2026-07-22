@@ -631,13 +631,8 @@ with profile_tab:
 
             # --- tasks, grouped by tag ---
             if tasks:
-                by_tag = {}
-                for t in tasks:
-                    by_tag.setdefault(t["tag"] or "untagged", []).append(t)
-                for tag in sorted(by_tag.keys()):
-                    if len(by_tag) > 1 or tag != "untagged":
-                        st.markdown(f"**{tag}**")
-                    for t in by_tag[tag]:
+                if True:
+                    for t in tasks:
                         cols = st.columns([5, 1.2, 0.6])
                         new_text = cols[0].text_area("task", value=t["text"],
                                                      key=f"task{t['id']}", label_visibility="collapsed",
@@ -647,12 +642,17 @@ with profile_tab:
                         elif new_text.strip() != t["text"]:
                             st.session_state.setdefault("open_jobs", set()).add(job["id"])
                             store.update_task(t["id"], new_text.strip()); st.rerun()
-                        new_tag = cols[1].text_input("tag", value=t["tag"] or "",
-                                                     key=f"tag{t['id']}", label_visibility="collapsed",
-                                                     placeholder="tag")
-                        if new_tag != (t["tag"] or ""):
+                        _cur_grp = str(t["group_id"]) if ("group_id" in t.keys() and t["group_id"] is not None) else ""
+                        new_grp = cols[1].text_input("group", value=_cur_grp,
+                                                     key=f"grp{t['id']}", label_visibility="collapsed",
+                                                     placeholder="group",
+                                                     help="Type the same group name on 2+ tasks to mark "
+                                                          "them as ONE accomplishment the tailor may "
+                                                          "compose into a single bullet. Leave empty = "
+                                                          "standalone.")
+                        if new_grp.strip() != _cur_grp:
                             st.session_state.setdefault("open_jobs", set()).add(job["id"])
-                            store.set_task_tag(t["id"], new_tag); st.rerun()
+                            store.set_task_group_label(t["id"], new_grp); st.rerun()
                         if cols[2].button("✕", key=f"deltask{t['id']}"):
                             st.session_state.setdefault("open_jobs", set()).add(job["id"])
                             store.delete_task(t["id"]); st.rerun()
@@ -661,11 +661,13 @@ with profile_tab:
             with st.form(f"addtask{job['id']}", clear_on_submit=True):
                 new_tasks = st.text_area("Add accomplishments", key=f"newtask{job['id']}",
                     help="Each line becomes its own accomplishment. Hit Enter between them.")
-                new_tag = st.text_input("Tag for these (optional, e.g. leadership, IAM)", key=f"newtag{job['id']}")
+                new_grp = st.text_input("Group for these (optional — same group name = one accomplishment)", key=f"newgrp{job['id']}")
                 if st.form_submit_button("Add") and new_tasks.strip():
                     st.session_state.setdefault("open_jobs", set()).add(job["id"])
                     for ln in [x.strip() for x in new_tasks.split("\n") if x.strip()]:
-                        store.add_task(job["id"], ln, new_tag.strip())
+                        _tid = store.add_task(job["id"], ln)
+                        if new_grp.strip():
+                            store.set_task_group_label(_tid, new_grp)
                     st.rerun()
 
             _coach_widget(job)
