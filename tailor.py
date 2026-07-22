@@ -3,6 +3,8 @@ import store
 from ai import ask_claude
 import json
 
+MODEL = "claude-sonnet-4-6"  # one source of truth; see MODEL-CONST. sonnet-5 is newer but bans temperature (400) — stay here while SCORE-STEADY wants that lever
+
 def build_system():
     """Assemble the editor instructions from your saved style settings."""
     tone    = store.get_setting("style_tone", "Professional")
@@ -165,7 +167,7 @@ def build_candidate_profile():
 
 def tailor_resume(job_ad):
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
-    return ask_claude(prompt, system=build_system(), model="claude-sonnet-4-6", max_tokens=1500)
+    return ask_claude(prompt, system=build_system(), model=MODEL, max_tokens=1500)
 
 ANALYZE_SYS = (
     "You are a precise resume-matching analyst. Compare the candidate's real resume and logged "
@@ -197,7 +199,7 @@ ANALYZE_SYS = (
 def analyze_match(job_ad):
     """Compare the candidate to a job ad; return a dict with score, matched, missing, gaps."""
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
-    raw = ask_claude(prompt, system=ANALYZE_SYS, model="claude-sonnet-4-6", max_tokens=800)
+    raw = ask_claude(prompt, system=ANALYZE_SYS, model=MODEL, max_tokens=800)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()   # strip any fences
     return json.loads(clean)   # turn the JSON text into a Python dict
 
@@ -267,7 +269,7 @@ def export_audit(tailored_text):
     """Trace every claim in a tailored draft back to the bank; flag drift the tailoring
     prompt's own rules might have missed. Returns a list of flag dicts."""
     prompt = f"TAILORED DRAFT:\n{tailored_text}\n\n{build_candidate_profile()}"
-    raw = ask_claude(prompt, system=EXPORT_AUDIT_SYS, model="claude-sonnet-4-6", max_tokens=3000)
+    raw = ask_claude(prompt, system=EXPORT_AUDIT_SYS, model=MODEL, max_tokens=3000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     try:
         result = json.loads(clean)
@@ -310,7 +312,7 @@ def bank_lint_tier2():
     """One model call reviewing the whole task bank for near-duplicates, contradictions,
     vocabulary drift, and connotation issues. Returns a list of flag dicts."""
     prompt = build_candidate_profile()
-    raw = ask_claude(prompt, system=BANK_LINT_TIER2_SYS, model="claude-sonnet-4-6", max_tokens=2000)
+    raw = ask_claude(prompt, system=BANK_LINT_TIER2_SYS, model=MODEL, max_tokens=2000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     try:
         result = json.loads(clean)
@@ -329,7 +331,7 @@ def reality_check(pasted_source):
             f"- {j['employer']} — {j['role']} ({j['start_date'] or '?'} to {j['end_date'] or 'Present'})"
         )
     prompt = f"PASTED SOURCE:\n{pasted_source}\n\n" + "\n".join(jobs_lines)
-    raw = ask_claude(prompt, system=REALITY_SYS, model="claude-sonnet-4-6", max_tokens=1000)
+    raw = ask_claude(prompt, system=REALITY_SYS, model=MODEL, max_tokens=1000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     result = json.loads(clean)
     if not isinstance(result, list):
@@ -373,7 +375,7 @@ def braindump_to_tasks(dump_text):
     """Turn a messy description into clean task strings plus optional follow-up questions.
     Returns (tasks, questions). Tolerates either the new {"tasks","questions"} object or a
     legacy bare array, so a stray old-format response never crashes the widget."""
-    raw = ask_claude(dump_text, system=BRAINDUMP_SYS, model="claude-sonnet-4-6", max_tokens=1000)
+    raw = ask_claude(dump_text, system=BRAINDUMP_SYS, model=MODEL, max_tokens=1000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     result = json.loads(clean)
     if isinstance(result, list):                       # legacy bare-array shape
