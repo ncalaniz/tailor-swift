@@ -260,31 +260,43 @@ def build_pdf(tailored_text):
         title, dates, loc = _job_heading_parts(job_id)
         if not title:
             continue
+        # employer + role separately for the four-corner header (title is "Employer — Role")
+        employer, role = title, ""
+        for j in store.list_jobs():
+            if j["id"] == job_id:
+                employer = (j["employer"] or "").strip() or title
+                role = (j["role"] or "").strip()
+                break
         if not drew_experience:
             pdf.ln(2)
             _section_header(pdf, "Experience")
             drew_experience = True
-        pdf.set_font("Helvetica", "", 11)
-        dates_w = pdf.get_string_width(_ascii(dates)) + 4
-        pdf.set_font("Helvetica", "B", 13)
-        title_txt = _ascii(title)
+
         usable = pdf.w - pdf.l_margin - pdf.r_margin
-        max_title_w = usable - dates_w
-        if pdf.get_string_width(title_txt) + 2 <= max_title_w:
-            # fits on one line: title left, dates right
-            title_w = pdf.get_string_width(title_txt) + 2
-            pdf.cell(title_w, 7, title_txt)
-            pdf.set_font("Helvetica", "", 11)
-            pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
-        else:
-            # too long to share a line: let the title wrap, put dates underneath
-            pdf.multi_cell(0, 7, title_txt, new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 11)
-            pdf.cell(0, 6, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", "", 11)
-        if loc:
+
+        # KEEP-TOGETHER: don't orphan a heading at the page bottom. If the two heading
+        # lines (~14mm) plus the first bullet (~11mm) won't fit, break to the next page first.
+        if pdf.get_y() + 25 > pdf.h - pdf.b_margin:
+            pdf.add_page()
+
+        # LINE 1: employer (bold) left, dates (regular) right
+        pdf.set_font("Helvetica", "", 10)
+        dates_w = pdf.get_string_width(_ascii(dates)) + 4 if dates else 0
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(usable - dates_w, 7, _ascii(employer))
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 7, _ascii(dates), align="R", new_x="LMARGIN", new_y="NEXT")
+
+        # LINE 2: role (italic) left, location (italic) right
+        if role or loc:
             pdf.set_font("Helvetica", "I", 10)
-            pdf.cell(0, 5, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")
+            loc_w = pdf.get_string_width(_ascii(loc)) + 4 if loc else 0
+            pdf.set_font("Helvetica", "I", 11)
+            pdf.cell(usable - loc_w, 6, _ascii(role))
+            pdf.set_font("Helvetica", "I", 10)
+            pdf.cell(0, 6, _ascii(loc), align="R", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+
         for line in bullets:
             _draw_line(line)
 

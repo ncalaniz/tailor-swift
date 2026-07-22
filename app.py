@@ -103,6 +103,21 @@ def md_safe(text):
     """Escape $ so st.markdown doesn't swallow money figures as LaTeX math."""
     return (text or "").replace("$", "\\$")
 
+def _dejob(text):
+    """Swap any leaked JOB:id tag (from build_candidate_profile's [[JOB:id]] format)
+    for the real 'Employer — Role' heading, so lint/audit notes read for a human.
+    Catches [[JOB:3]], JOB:3, and JOB 3 alike."""
+    from export import _job_heading_parts
+    if not text:
+        return text
+    def _swap(m):
+        try:
+            title, _dates, _loc = _job_heading_parts(int(m.group(1)))
+            return title or m.group(0)
+        except Exception:
+            return m.group(0)
+    return re.sub(r"\[?\[?JOB[:\s]\s*(\d+)\]?\]?", _swap, text)
+
 def _split_trimmed(text):
     """Separate the '## Trimmed for length' report from the actual resume text.
     Returns (resume_text, [trimmed_line, ...]). The trimmed lines are the cut-bullet
@@ -417,8 +432,8 @@ with profile_tab:
             for _f in _bl2_flags:
                 st.warning(
                     f"**[{_f.get('issue_type', '?')}]**\n\n"
-                    f"{md_safe(_f.get('note', ''))}\n\n"
-                    + "\n\n".join(f"- {md_safe(t)}" for t in _f.get("tasks", []))
+                    f"{md_safe(_dejob(_f.get('note', '')))}\n\n"
+                    + "\n\n".join(f"- {md_safe(_dejob(t))}" for t in _f.get("tasks", []))
                 )
         elif "banklint2_flags" in st.session_state:
             st.success("No wording issues found across your task bank.")
@@ -717,7 +732,12 @@ with tailor_tab:
                 st.rerun()
             if st.session_state.pop(f"saved{a['id']}", False):
                 s[1].success("Saved.")
-            if draft != a["generated"]:
+            def _norm_ws(t):
+                # compare on content, not incidental blank lines: reassembly strips
+                # whitespace the raw model draft had, so a raw != reassembled diff is
+                # not a real edit. Collapse each line's trailing space + drop blank lines.
+                return "\n".join(ln.rstrip() for ln in (t or "").split("\n") if ln.strip())
+            if _norm_ws(draft) != _norm_ws(a["generated"]):
                 s[1].caption("⚠ Unsaved edits — downloads below use what's in the box.")
 
             # --- P7: report which jobs were included vs silently skipped ---
@@ -752,9 +772,9 @@ with tailor_tab:
                 if _audit_flags:
                     for _f in _audit_flags:
                         st.warning(
-                            f"**[{_f.get('issue_type', '?')}]** {md_safe(_f.get('claim', ''))}\n\n"
-                            f"{md_safe(_f.get('note', ''))}\n\n"
-                            f"Source task: {md_safe(_f.get('source_task') or 'none found')}"
+                            f"**[{_f.get('issue_type', '?')}]** {md_safe(_dejob(_f.get('claim', '')))}\n\n"
+                            f"{md_safe(_dejob(_f.get('note', '')))}\n\n"
+                            f"Source task: {md_safe(_dejob(_f.get('source_task') or 'none found'))}"
                         )
                 elif f"audit{a['id']}" in st.session_state:
                     st.success("No drift found — every claim traces back to the bank.")
