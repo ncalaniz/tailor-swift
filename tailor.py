@@ -54,12 +54,21 @@ def build_system():
         "job should read as a FEW bullets about owning outcomes and functions — raise the "
         "ALTITUDE of each bullet (describe the outcome owned, not every sub-task) rather than "
         "listing many small tasks, because a long list of granular tasks makes a senior role "
-        "read as junior. Consolidation is allowed ONLY when the atomic tasks are genuinely part "
-        "of ONE initiative; two DISTINCT accomplishments stay two bullets even at senior level. "
-        "Never merge two tasks such that one's result (a metric, a time saving) reads as the "
+        "read as junior. RAISING ALTITUDE MEANS DESCRIBING ONE TASK AT A HIGHER LEVEL — it does "
+        "NOT mean combining tasks. Each bullet you write must trace to EXACTLY ONE stored task. "
+        "Before writing a bullet, name the single task it comes from; if two stored tasks both "
+        "feed one bullet, that is a blend — split it into two bullets. This holds even when two "
+        "tasks look like 'one initiative' to you: 'built reporting infrastructure' and 'built an "
+        "AI dashboard' are TWO tasks and TWO bullets even though both are 'reporting', because "
+        "the bank stores them separately and combining them implies a single unified effort the "
+        "bank does not describe. The ONLY exception is when a SINGLE stored task is itself "
+        "long enough to shorten — you may compress ONE task's wording, never fuse TWO. When you "
+        "feel the pull to join two tasks with 'and' for a tighter line, that pull is the blend "
+        "this rule forbids: write two bullets, or pick the stronger single task. Never merge two "
+        "tasks such that one's result (a metric, a time saving) reads as the "
         "outcome or purpose of the other — that both fabricates a causal link AND undersells the "
         "task whose own point gets demoted to a supporting clause. Higher-altitude means fewer, "
-        "bigger bullets — NOT the same tasks blended together. An IC "
+        "bigger bullets, each still ONE task — NOT the same tasks blended together. An IC "
         "or Manager job keeps more of the detailed, individual-contribution granularity, since "
         "that specificity is the point at that level. This is CONSOLIDATION of real tasks, not "
         "invention: never merge tasks in a way that implies a causal link the source doesn't "
@@ -132,7 +141,25 @@ def build_system():
         "candidate's own plain operational language (e.g. 'workforce and access management "
         "systems') instead of borrowing the ad's functional framing. Then a '## Summary' heading "
         "followed by 3-4 bullet points (each starting with '- '), not a paragraph — "
-        "one distinct, independently-checkable claim per bullet. Then, for each relevant "
+        "one distinct, independently-checkable claim per bullet. "
+        "\n\nONE-JOB-PER-BULLET (structural anti-blend rule — this is a HARD constraint, not a "
+        "preference): each summary bullet must draw its facts from EXACTLY ONE stored task at ONE job. Before writing "
+        "a summary bullet, identify the single task it comes from; if you cannot name one task that "
+        "backs the whole bullet, the bullet is blending and must be split. This applies within a single "
+        "job too — two tasks at the same employer ('partnered with CRM team' and 'drove automation "
+        "saving 1,000 hours') are still two accomplishments and may not share one bullet. " 
+        "You may NOT combine an "
+        "accomplishment from job A with an accomplishment from job B into one bullet — not with "
+        "'and', not with a shared outcome, not by describing them as one 'program' or 'initiative' "
+        "or 'infrastructure'. If two jobs did similar work (e.g. built reporting at two companies, "
+        "ran incentive programs at two companies), that is TWO bullets or ONE bullet naming ONE of "
+        "them — never one bullet implying a single continuous effort spanning both. When you feel "
+        "the pull to compress multiple jobs into a tight single line, that pull is exactly the "
+        "blend this rule forbids: resist it by either (a) picking the single strongest job's version "
+        "and writing only that, or (b) using two bullets. A summary that honestly covers fewer "
+        "accomplishments beats a tight one that welds distinct work together. This rule OVERRIDES "
+        "any pressure to keep the summary short: correctness first, brevity second. "
+        "Then, for each relevant "
         "job, output a line containing ONLY that job's tag exactly as given (e.g. "
         "'[[JOB:3]]') on its own line, followed by that job's "
         "bullets starting with '- '. Output jobs in reverse-chronological order — most recent "
@@ -199,9 +226,13 @@ ANALYZE_SYS = (
 def analyze_match(job_ad):
     """Compare the candidate to a job ad; return a dict with score, matched, missing, gaps."""
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
-    raw = ask_claude(prompt, system=ANALYZE_SYS, model=MODEL, max_tokens=800)
+    raw = ask_claude(prompt, system=ANALYZE_SYS, model=MODEL, max_tokens=2000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()   # strip any fences
-    return json.loads(clean)   # turn the JSON text into a Python dict
+    try:
+        return json.loads(clean)   # turn the JSON text into a Python dict
+    except json.JSONDecodeError:
+        raise ValueError("The analysis response got cut off before finishing — try running it "
+                         "again.")
 
 REALITY_SYS = (
     "You compare a candidate's resume database against an outside source they pasted (usually "
@@ -333,7 +364,11 @@ def reality_check(pasted_source):
     prompt = f"PASTED SOURCE:\n{pasted_source}\n\n" + "\n".join(jobs_lines)
     raw = ask_claude(prompt, system=REALITY_SYS, model=MODEL, max_tokens=1000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
-    result = json.loads(clean)
+    try:
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        raise ValueError("The reality-check response got cut off before finishing — try running "
+                         "it again.")
     if not isinstance(result, list):
         raise ValueError("Expected a list of discrepancies")
     return result
