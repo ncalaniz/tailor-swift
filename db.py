@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS applications (
     applied_snapshot TEXT,
     created_at   TEXT DEFAULT (date('now'))
 );
+-- Status timeline. One row per status change; the Applied date is just the
+-- 'Applied' event, never overwritten by later changes.
+CREATE TABLE IF NOT EXISTS status_events (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    date   TEXT,
+    FOREIGN KEY (app_id) REFERENCES applications(id) ON DELETE CASCADE
+);
 """
 
 def get_connection():

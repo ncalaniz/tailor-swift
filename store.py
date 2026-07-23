@@ -132,6 +132,23 @@ def set_applied_snapshot(app_id, snapshot):
 def delete_application(app_id):
     _write("DELETE FROM applications WHERE id = ?;", (app_id,))
 
+def add_status_event(app_id, status, date=""):
+    """Append one row to the status timeline. Empty date = dateless event."""
+    return _write("INSERT INTO status_events (app_id, status, date) VALUES (?, ?, ?);",
+                  (app_id, status, date or None))
+
+def list_status_events(app_id):
+    return _read("SELECT * FROM status_events WHERE app_id = ? ORDER BY id;", (app_id,))
+
+def latest_event(app_id):
+    rows = _read("SELECT * FROM status_events WHERE app_id = ? ORDER BY id DESC LIMIT 1;", (app_id,))
+    return rows[0] if rows else None
+
+def sync_applied_event_date(app_id, date):
+    """Keep the 'Applied' timeline event in step when the user edits Date applied."""
+    _write("UPDATE status_events SET date = ? WHERE app_id = ? AND status = 'Applied';",
+           (date or None, app_id))
+
 def update_job(job_id, employer, role, start_date, end_date, location="", seniority=""):
     _write(
         "UPDATE jobs SET employer = ?, role = ?, start_date = ?, end_date = ?, "

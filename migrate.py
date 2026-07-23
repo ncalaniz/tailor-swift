@@ -29,6 +29,30 @@ def migrate():
     else:
         print("jobs.include_on_resume already present — skipping")
 
+# --- TRACKER-TABLE: status timeline + backfill ---
+    have = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='status_events';").fetchall()
+    if not have:
+        conn.execute("""CREATE TABLE status_events (
+            id     INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            date   TEXT,
+            FOREIGN KEY (app_id) REFERENCES applications(id) ON DELETE CASCADE
+        );""")
+        # Backfill so no history is lost: every dated application seeds an 'Applied'
+        # event; non-Applied current statuses seed a DATELESS event (we don't know
+        # when the change happened — a wrong date is worse than no date).
+        for a in conn.execute("SELECT id, status, date_applied FROM applications;").fetchall():
+            if a["date_applied"]:
+                conn.execute("INSERT INTO status_events (app_id, status, date) VALUES (?, 'Applied', ?);",
+                             (a["id"], a["date_applied"]))
+            if a["status"] and a["status"] not in ("Not applied", "Applied"):
+                conn.execute("INSERT INTO status_events (app_id, status, date) VALUES (?, ?, NULL);",
+                             (a["id"], a["status"]))
+        print("Created status_events + backfilled from existing applications")
+    else:
+        print("status_events already present — skipping")
+
     conn.commit()
     conn.close()
     print("Migration complete.")

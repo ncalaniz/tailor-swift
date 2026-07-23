@@ -948,18 +948,35 @@ with apps_tab:
     if not apps:
         st.info("No applications yet. Start one in the Tailor tab.")
     total = len(apps)
+    if apps:
+        h = st.columns([0.5, 2, 3, 0.8, 1.5, 1.3, 0.5])
+        for col, name in zip(h, ["#", "Company", "Title", "Match", "Status", "Last action", ""]):
+            col.caption(f"**{name}**")
     for i, a in enumerate(apps):
         n = total - i
-        score = f" · match {a['match_score']}" if a["match_score"] is not None else ""
-        when = f" · applied {a['date_applied']}" if a["date_applied"] else ""
-        header = f"#{n}  {a['company'] or '—'} — {a['title'] or ''}   [{a['status']}]{score}{when}"
-        with st.expander(header):
+        _open = st.session_state.get(f"row_open{a['id']}", False)
+        _ev = store.latest_event(a["id"])
+        _last = (_ev["date"] or "—") if _ev else (a["date_applied"] or "—")
+        r = st.columns([0.5, 2, 3, 0.8, 1.5, 1.3, 0.5])
+        r[0].write(f"{n}")
+        r[1].write(a["company"] or "—")
+        r[2].write(a["title"] or "—")
+        r[3].write(a["match_score"] if a["match_score"] is not None else "—")
+        r[4].write(a["status"])
+        r[5].write(_last)
+        if r[6].button("▾" if _open else "▸", key=f"rowbtn{a['id']}"):
+            st.session_state[f"row_open{a['id']}"] = not _open
+            st.rerun()
+        if not _open:
+            continue
+        with st.container(border=True):
             c = st.columns(2)
             idx = STATUSES.index(a["status"]) if a["status"] in STATUSES else 0
             _stver = st.session_state.get(f"stver{a['id']}", 0)
             new_status = c[0].selectbox("Status", STATUSES, index=idx, key=f"st{a['id']}_{_stver}")
             if new_status != a["status"]:
                 store.set_application_status(a["id"], new_status)
+                store.add_status_event(a["id"], new_status, datetime.date.today().isoformat())
                 if new_status == "Applied" and not a["date_applied"]:
                     store.set_application_date(a["id"], datetime.date.today().isoformat())
                     st.session_state[f"dtver{a['id']}"] = st.session_state.get(f"dtver{a['id']}", 0) + 1
@@ -971,7 +988,13 @@ with apps_tab:
             new_date_text = new_date.isoformat() if new_date else ""
             if new_date_text != (a["date_applied"] or ""):
                 store.set_application_date(a["id"], new_date_text)
+                store.sync_applied_event_date(a["id"], new_date_text)
                 st.rerun()
+
+            _events = store.list_status_events(a["id"])
+            if _events:
+                st.caption("Timeline: " + "  →  ".join(
+                    f"{e['status']} {e['date'] or '(no date)'}" for e in _events))
 
             with st.expander("Update company / title"):
                 st.caption("For aggregators (Ladders, etc.) where the real employer only shows "
@@ -1031,3 +1054,4 @@ with apps_tab:
 
             if st.button("Delete", key=f"da{a['id']}"):
                 store.delete_application(a["id"]); st.rerun()
+    
