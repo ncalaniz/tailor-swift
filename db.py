@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS applications (
     date_applied TEXT,
     got_response INTEGER DEFAULT 0,     -- SQLite has no boolean: 0 = no, 1 = yes
     notes        TEXT,
+    url          TEXT,
     match_score  INTEGER,
     matched      TEXT,                  -- JSON list stored as text
     missing      TEXT,

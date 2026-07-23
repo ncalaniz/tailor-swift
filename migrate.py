@@ -29,6 +29,14 @@ def migrate():
     else:
         print("jobs.include_on_resume already present — skipping")
 
+# --- URL-COLUMN-MISMATCH: applications.url existed in the live DB but not in
+    # db.py's SCHEMA (drift). SCHEMA now has it; this backfills any DB that doesn't.
+    if not _column_exists(conn, "applications", "url"):
+        conn.execute("ALTER TABLE applications ADD COLUMN url TEXT;")
+        print("Added applications.url")
+    else:
+        print("applications.url already present — skipping")
+
 # --- TRACKER-TABLE: status timeline + backfill ---
     have = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='status_events';").fetchall()
     if not have:
