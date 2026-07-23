@@ -740,8 +740,8 @@ with tailor_tab:
         st.caption("Paste a job, analyze your fit first, then decide whether to tailor or pass.")
         with st.form("new_job", clear_on_submit=True):
             c = st.columns(2)
-            company = c[0].text_input("Company")
-            title = c[1].text_input("Role title")
+            title = c[0].text_input("Role title")
+            company = c[1].text_input("Company")
             url = st.text_input("Job posting URL (optional)")
             ad = st.text_area("Paste the job ad", height=220)
             go = st.form_submit_button("Analyze fit")
