@@ -38,6 +38,28 @@ def build_system():
         "source explicitly states direct management of that many people. Scope inflation is "
         "the same class of lie as credit theft — reattributing what a number counts, not just "
         "who gets credit for it. "
+        "\n\nSOURCE-WORD DISCIPLINE (structural rule — this is HOW the two rules above get enforced, "
+        "not another restatement of them). Every bullet is an edit of ONE source task, and edits may "
+        "run in only two safe directions:\n"
+        "  (1) YOU MAY NOT ADD CONCRETE DETAIL. Before writing a bullet, check every concrete noun, "
+        "named entity, number, qualifier, and verb against the source task. If you cannot point to "
+        "that word (or an exact synonym) in the source, DELETE it from the bullet. Concretely: if the "
+        "source says 'partnered with the CRM team', you may NOT write 'partnered with CRM and Product "
+        "teams' — 'Product' is not in the source, and borrowing it from a DIFFERENT task is the same "
+        "violation as inventing it. If the source says 'design and deploy', you may NOT write 'design, "
+        "implement, and test' — 'test' is added. If the source says 'renewed the contract', you may NOT "
+        "append 'maintaining platform continuity across global operations' — that scope phrase exists "
+        "nowhere in the source. A bullet that is shorter and plainer than you would like but fully "
+        "traceable is CORRECT; a richer bullet with one added detail is a FAILURE.\n"
+        "  (2) YOU MAY NOT DELETE ATTRIBUTION. Words in the source that assign credit — 'the team', "
+        "'we', 'partnered with', 'supported', 'helped', 'contributed to', 'as part of' — MUST survive "
+        "into the bullet. Dropping them so a claim reads as individual work is the same violation as "
+        "adding a false claim, just performed with the delete key. If the source says 'led the team "
+        "through correcting all impacted opportunities', the bullet may not become 'corrected all "
+        "impacted opportunities'.\n"
+        "So: CUT detail freely and REPHRASE verbs for altitude, but never ADD concrete detail and "
+        "never CUT attribution. When unsure about a word, ask: 'is this word, or its exact synonym, "
+        "in the source task?' If no, it does not go in the bullet. "
         "NEVER COMBINE two distinct tasks into one bullet in a way that implies one caused the "
         "other's outcome, unless a task explicitly states that connection. If you join two real "
         "tasks with 'and', the result must not read as a single cause-and-effect story the "
@@ -188,10 +210,15 @@ def build_system():
     )
     return rules
 
-def build_candidate_profile():
-    """Assemble the stored resume + work history + tasks into one text block."""
+def build_candidate_profile(include_hidden=False):
+    """Assemble the stored resume + work history + tasks into one text block.
+    include_hidden=True keeps jobs the user toggled off — bank-integrity callers
+    (lint) need the WHOLE bank; resume-facing callers (tailor, audit) do not."""
     lines = ["WORK HISTORY AND TASKS (real experience only):"]
     for job in store.list_jobs():
+        if (not include_hidden and "include_on_resume" in job.keys()
+                and not job["include_on_resume"]):
+            continue   # user hid this job — it never reaches the tailor OR the audit
         sen = job["seniority"] if "seniority" in job.keys() else ""
         level = f"  [seniority at this job: {sen}]" if sen else ""
         lines.append(f"\n[[JOB:{job['id']}]] {job['employer']} — {job['role']}{level}")
@@ -201,10 +228,52 @@ def build_candidate_profile():
             lines.append(f"- {task['text']}{marker}")
     return "\n".join(lines)
 
+SELF_CHECK_SYS = (
+    "You are a REPAIR PASS. You are given a TAILORED RESUME DRAFT and the candidate's TASK BANK. "
+    "Find places where the draft drifted from the bank, FIX them in place, and return the corrected "
+    "draft. You are NOT writing a new resume and you are NOT reporting problems — you output the "
+    "same draft with violations repaired.\n\n"
+    "YOU MAY PERFORM ONLY THESE FOUR OPERATIONS. Any other change is forbidden:\n"
+    "  (1) SPLIT — if one bullet draws on two or more DIFFERENT bank tasks that do NOT share a "
+    "[[GROUP:label]] marker, split it into separate bullets, one per task. Watch especially for "
+    "NEAR-TWIN tasks: two bank entries that begin the same way ('Partnered with X team to design...') "
+    "are still TWO tasks, and a bullet covering both is a merge even though it reads smoothly. Tasks "
+    "that SHARE a group marker are sanctioned to be combined — leave those alone.\n"
+    "  (2) RESTORE — if the bank task contains credit-assigning words ('the team', 'we', 'partnered "
+    "with', 'supported', 'helped', 'contributed to', 'as part of') that the draft dropped, put them "
+    "back. Also restore meaning-changing qualifiers the draft dropped: if the bank says 'renegotiated "
+    "EXISTING contracts' and the draft says 'renegotiated contracts', restore 'existing'.\n"
+    "  (3) DELETE — if the draft contains a concrete noun, named entity, number, qualifier, or verb "
+    "that does not appear in the ONE bank task that bullet comes from, remove it. This includes detail "
+    "borrowed from a DIFFERENT bank task: if the source says 'partnered with the CRM team' and the "
+    "draft says 'partnered with CRM and Product teams', delete 'and Product'.\n"
+    "  (4) DE-ESCALATE — if the draft uses a stronger verb than the bank ('Built and scaled' became "
+    "'Owned'; 'supported' became 'drove'; 'contributed to' became 'led'), restore the bank's verb.\n\n"
+    "YOU MAY NOT: add any new fact, rewrite a bullet for style, reorder sections, change headings, "
+    "alter the [[JOB:id]] tags, or delete a bullet entirely. If a bullet is already faithful, leave it "
+    "EXACTLY as it is — most bullets should come back unchanged.\n\n"
+    "Return ONLY the corrected draft, in the same format you received it (same headings, same "
+    "[[JOB:id]] tags, same bullet markers). No preamble, no explanation, no summary of changes."
+)
+
+def self_check_draft(draft):
+    """Second pass: re-read the tailored draft against the bank and repair drift the
+    generation prompt let through. Catches by category, not by enumerated example —
+    which is the point, since prompt rules only stop the variants they name."""
+    prompt = f"TAILORED RESUME DRAFT:\n{draft}\n\n{build_candidate_profile()}"
+    raw = ask_claude(prompt, system=SELF_CHECK_SYS, model=MODEL, max_tokens=2500)
+    fixed = raw.strip()
+    # Safety valve: if the repair pass returns something implausible (truncated,
+    # empty, mangled), keep the ORIGINAL rather than shipping damage.
+    if len(fixed) < len(draft) * 0.5:
+        return draft
+    return fixed
+
 def tailor_resume(job_ad):
     prompt = f"JOB AD:\n{job_ad}\n\n{build_candidate_profile()}"
     raw = ask_claude(prompt, system=build_system(), model=MODEL, max_tokens=1500)
-    return re.sub(r"\s*\[\[GROUP:[^\]]+\]\]", "", raw)   # strip any leaked group markers
+    raw = self_check_draft(raw)                                    # repair pass, before the strip
+    return re.sub(r"\s*\[\[GROUP:[^\]]+\]\]", "", raw)
 
 ANALYZE_SYS = (
     "You are a precise resume-matching analyst. Compare the candidate's real resume and logged "
@@ -356,7 +425,7 @@ BANK_LINT_TIER2_SYS = (
 def bank_lint_tier2():
     """One model call reviewing the whole task bank for near-duplicates, contradictions,
     vocabulary drift, and connotation issues. Returns a list of flag dicts."""
-    prompt = build_candidate_profile()
+    prompt = build_candidate_profile(include_hidden=True)   # lint the WHOLE bank, hidden jobs included
     raw = ask_claude(prompt, system=BANK_LINT_TIER2_SYS, model=MODEL, max_tokens=2000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     try:

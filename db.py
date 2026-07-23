@@ -19,15 +19,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     start_date TEXT,
     end_date   TEXT,
     location   TEXT,
-    seniority  TEXT DEFAULT ''
+    seniority  TEXT DEFAULT '',
+    include_on_resume INTEGER DEFAULT 1   -- 0 = user hid this job from resumes
 );
 
 -- Accomplishment bank. Each task is tied to one job (its resume section).
 CREATE TABLE IF NOT EXISTS tasks (
-    id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_id INTEGER NOT NULL,
-    text   TEXT NOT NULL,
-    tag    TEXT DEFAULT '',
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id   INTEGER NOT NULL,
+    text     TEXT NOT NULL,
+    tag      TEXT DEFAULT '',
+    group_id TEXT DEFAULT NULL,   -- shared label = one sanctioned accomplishment
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
 );
 

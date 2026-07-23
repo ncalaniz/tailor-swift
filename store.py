@@ -139,6 +139,12 @@ def update_job(job_id, employer, role, start_date, end_date, location="", senior
         (employer, role, start_date, end_date, location, seniority, job_id),
     )
 
+def set_job_included(job_id, included):
+    """Toggle whether a job appears on tailored resumes. Hidden jobs never enter
+    the tailor's view at all — the model can't include what it can't see."""
+    _write("UPDATE jobs SET include_on_resume = ? WHERE id = ?;",
+           (1 if included else 0, job_id))
+
 def save_analysis(app_id, score, matched, missing, gaps):
     _write(
         "UPDATE applications SET match_score = ?, matched = ?, missing = ?, gaps = ? WHERE id = ?;",

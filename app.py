@@ -118,6 +118,26 @@ def _dejob(text):
             return m.group(0)
     return re.sub(r"\[?\[?JOB[:\s]\s*(\d+)\]?\]?", _swap, text)
 
+_MONTH_OK = {"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec",
+             "january","february","march","april","june","july","august","september",
+             "october","november","december"}
+
+def _date_warning(text):
+    """Deterministic sanity check for job dates like 'Apr 2023' / 'Present' / ''.
+    Returns a warning string, or '' if the date looks fine. The 'Apt 2016' guard."""
+    t = (text or "").strip()
+    if not t or t.lower() == "present":
+        return ""
+    parts = t.split()
+    if len(parts) != 2:
+        return f"⚠ '{t}' — expected 'Mon YYYY' or 'Present'"
+    mon, yr = parts
+    if mon.lower().rstrip(".") not in _MONTH_OK:
+        return f"⚠ '{mon}' isn't a month"
+    if not (yr.isdigit() and len(yr) == 4 and 1950 <= int(yr) <= 2100):
+        return f"⚠ '{yr}' isn't a plausible year"
+    return ""
+
 def _split_trimmed(text):
     """Separate the '## Trimmed for length' report from the actual resume text.
     Returns (resume_text, [trimmed_line, ...]). The trimmed lines are the cut-bullet
@@ -594,7 +614,9 @@ with profile_tab:
         tasks = store.list_tasks(job["id"])
         _dates = f"{job['start_date']} – {job['end_date']}" if job["start_date"] else ""
         _loc = f" · {job['location']}" if job["location"] else ""
-        with st.expander(f"{job['employer']} — {job['role']}  ({_dates}{_loc} · {len(tasks)} tasks)",
+        _hidden = ("include_on_resume" in job.keys() and not job["include_on_resume"])
+        _hide_tag = "   🚫 hidden from resumes" if _hidden else ""
+        with st.expander(f"{job['employer']} — {job['role']}  ({_dates}{_loc} · {len(tasks)} tasks){_hide_tag}",
                          expanded=(job["id"] in st.session_state.get("open_jobs", set()))):
             # --- job details ---
             c = st.columns(5)
@@ -603,6 +625,9 @@ with profile_tab:
             start = c[2].text_input("Start", value=job["start_date"] or "", key=f"start{job['id']}")
             end = c[3].text_input("End", value=job["end_date"] or "", key=f"end{job['id']}")
             loc = c[4].text_input("Location", value=job["location"] or "", key=f"loc{job['id']}")
+            for _w in (_date_warning(start), _date_warning(end)):
+                if _w:
+                    st.caption(_w)
             _levels = ["", "IC", "Manager", "Director", "Executive"]
             _cur_sen = job["seniority"] if "seniority" in job.keys() else ""
             seniority = st.selectbox(
@@ -612,6 +637,21 @@ with profile_tab:
                 help="Sets how much this job gets compressed when tailoring — a Director role "
                      "reads as a few bullets about owning the function; an IC role gets the "
                      "detailed play-by-play. Leave blank to let the model judge from the title.")
+            b = st.columns(2)
+            _cur_inc = (("include_on_resume" not in job.keys()) or bool(job["include_on_resume"]))
+            new_inc = st.checkbox(
+                "Include this job on resumes", value=_cur_inc, key=f"inc{job['id']}",
+                help="Off = this job never reaches the tailor at all — no heading, no bullets, "
+                     "nothing. Use it for old roles that just take up space. Note the tradeoff: "
+                     "hiding a job in the MIDDLE of your history leaves a visible date gap a reader "
+                     "will notice and wonder about. Hiding your OLDEST roles just makes the resume "
+                     "start later, which reads fine. Hidden jobs stay in your bank and still get "
+                     "checked by Bank Lint — they're only hidden from resumes.")
+            if new_inc != _cur_inc:
+                store.set_job_included(job["id"], new_inc)
+                st.session_state.setdefault("open_jobs", set()).add(job["id"])
+                st.rerun()
+
             b = st.columns(2)
             if b[0].button("Save changes", key=f"savejob{job['id']}"):
                 st.session_state.setdefault("open_jobs", set()).add(job["id"])
@@ -833,8 +873,10 @@ with tailor_tab:
             _inc_ids = {int(m) for m in re.findall(r"\[\[JOB:(\d+)\]\]", draft)}
             _jobs = store.list_jobs()
             _lbl = lambda j: f"{j['employer']} — {j['role']}" if j["role"] else j["employer"]
+            _hid = lambda j: ("include_on_resume" in j.keys() and not j["include_on_resume"])
             _in = [_lbl(j) for j in _jobs if j["id"] in _inc_ids]
-            _out = [_lbl(j) for j in _jobs if j["id"] not in _inc_ids]
+            _out = [_lbl(j) for j in _jobs if j["id"] not in _inc_ids and not _hid(j)]
+            _off = [_lbl(j) for j in _jobs if j["id"] not in _inc_ids and _hid(j)]
             _bullets = lambda items: "\n".join("- " + md_safe(x) for x in items)
             if _in:
                 st.caption("In this resume:")
@@ -845,6 +887,9 @@ with tailor_tab:
                 st.warning("Left out of this resume — if any belong here, they were skipped as "
                            "'not relevant', so check that's right:")
                 st.markdown(_bullets(_out))
+            if _off:
+                st.caption("Hidden by you (not an error — toggle back on in Work History): "
+                           + ", ".join(_off))
 
             with st.expander("🔎 Export audit — trace every claim back to the bank"):
                 st.caption("One model call, on demand — traces each claim in the draft against "

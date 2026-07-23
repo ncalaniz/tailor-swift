@@ -22,6 +22,13 @@ def migrate():
     else:
         print("tasks.group_id already present — skipping")
 
+    # --- JOB-TOGGLE: per-job "show on resumes" flag (1 = show, 0 = hide) ---
+    if not _column_exists(conn, "jobs", "include_on_resume"):
+        conn.execute("ALTER TABLE jobs ADD COLUMN include_on_resume INTEGER DEFAULT 1;")
+        print("Added jobs.include_on_resume")
+    else:
+        print("jobs.include_on_resume already present — skipping")
+
     conn.commit()
     conn.close()
     print("Migration complete.")
