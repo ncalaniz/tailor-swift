@@ -4,5 +4,8 @@ app.db
 __pycache__/
 *.pdf
 app_backup.py
+# Companion docs — personal (job-search notes, career detail). Local only.
 *TODO*
+Resume_Studio_Decisions.md
+Resume_Studio_Principles.md
 job_ad.txt
