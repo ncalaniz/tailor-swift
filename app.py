@@ -5,7 +5,8 @@ import streamlit as st
 import json
 import datetime
 import store
-from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit, bank_lint_tier2, coach_review_task, coach_apply_answers
+from tailor import braindump_to_tasks, tailor_resume, analyze_match, reality_check, export_audit, bank_lint_tier2, coach_review_job, coach_apply_answers
+import checks
 from export import build_docx, build_pdf, _year_of, _month_of
 from lint import check_bank
 import re
@@ -215,51 +216,106 @@ def _parse_list(text):
         return []
 
 def _coach_widget(job):
-    """TASK-QUALITY-COACH on-demand surface: review one job's tasks for weakness,
-    show a no-invention Tier-1 rewrite the user can accept, and a Tier-2
-    'go further' path that asks for missing facts then folds ONLY those in."""
+    """TASK-QUALITY-COACH, rebuilt against TASK_SPEC (A3). Two layers:
+    deterministic spec checks from checks.py (free, instant, run on every task), and ONE
+    batched model call per job for the judgement-only rules. Suggestions only — nothing
+    changes unless the user accepts it."""
     jid = job["id"]
     seniority = job["seniority"] if "seniority" in job.keys() else ""
-    with st.expander("✨ Coach my tasks — flag weak ones and help me strengthen them"):
-        st.caption("Reviews this job's tasks for the three things that make a bullet weak: no "
-                   "numbers, too junior for the role, or no outcome. Suggests a stronger version "
-                   "using ONLY what's already there — and if that's not enough, asks you for the "
-                   "missing facts. Never invents. Suggestions only; nothing changes unless you accept.")
+    tasks = store.list_tasks(jid)
+    with st.expander("✨ Coach my tasks — check them against the task spec"):
+        st.caption("Checks this job's tasks against TASK_SPEC. The mechanical rules "
+                   "(attribution, fragile qualifiers, look-alike tasks, spelling) are checked "
+                   "instantly by code; the judgement rules (two-things-in-one, altitude, missing "
+                   "scope, missing outcome) take one model call. Never invents facts.")
+
+        # ---------- layer 1: deterministic, always on ----------
+        rows = [{"id": t["id"], "job_id": jid, "text": t["text"],
+                 "group": (t["group_id"] if "group_id" in t.keys() else None)} for t in tasks]
+        mech_all = {t["id"]: checks.spec_scan(t["text"]) for t in tasks}
+        # Attribution is real but fires on a large share of a normal bank, and a checker that
+        # flags half of everything gets ignored along with its good findings. It gets one
+        # collapsed summary instead of an inline flag on every task.
+        attrib = {tid: [m for r, m in f if r == "rule4_attribution"]
+                  for tid, f in mech_all.items()}
+        attrib = {tid: m for tid, m in attrib.items() if m}
+        mech = {tid: [(r, m) for r, m in f if r != "rule4_attribution"]
+                for tid, f in mech_all.items()}
+        welds = checks.weld_risk(rows)
+        drift = checks.spelling_drift(rows)
+
+        if welds:
+            st.markdown("**These tasks are going to blend**")
+            st.caption("They share too much distinctive vocabulary, so the tailor reads them as "
+                       "one story. Two honest fixes: reword one so they read differently, or "
+                       "group them if they really are one accomplishment.")
+            for n, shared, a, b in welds[:6]:
+                st.markdown(f"- shares *{', '.join(shared[:5])}* — **#{a['id']}** {md_safe(a['text'][:70])}… "
+                            f"**+ #{b['id']}** {md_safe(b['text'][:70])}…")
+            st.divider()
+
+        if attrib:
+            with st.expander(f"Attribution unclear on {len(attrib)} task(s) — solo or team?"):
+                st.caption("Each of these opens with a verb that could be solo or team work and "
+                           "names neither. An ambiguous verb gets rendered as sole credit, so "
+                           "add 'led the team that', 'partnered with X', or 'personally' where "
+                           "it applies. Low priority — fix these when you're editing anyway.")
+                cur_map = {t["id"]: t for t in tasks}
+                for tid in attrib:
+                    if tid in cur_map:
+                        st.markdown(f"- **#{tid}** {md_safe(cur_map[tid]['text'][:110])}…")
+            st.divider()
+
+        if drift:
+            st.markdown("**Spelled more than one way**")
+            st.caption("Same thing, different strings — this breaks the checks that compare the "
+                       "draft against the bank. Pick one spelling and use it everywhere.")
+            for word, forms in list(drift.items())[:8]:
+                st.markdown(f"- {' / '.join(forms)}")
+            st.divider()
+
+        # ---------- layer 2: one model call for judgement ----------
         if st.button("Review this job's tasks", key=f"coach_run{jid}"):
-            reviews = {}
             with st.spinner("Coaching..."):
-                for t in store.list_tasks(jid):
-                    try:
-                        reviews[t["id"]] = coach_review_task(t["text"], seniority)
-                    except Exception as e:
-                        reviews[t["id"]] = {"error": str(e)}
-            st.session_state[f"coach_reviews{jid}"] = reviews
+                try:
+                    st.session_state[f"coach_reviews{jid}"] = coach_review_job(
+                        [{"id": t["id"], "text": t["text"]} for t in tasks], seniority)
+                except Exception as e:
+                    st.error(f"Coach failed: {e}")
 
         reviews = st.session_state.get(f"coach_reviews{jid}", {})
-        if not reviews:
+        cur = {t["id"]: t for t in tasks}
+        flagged = sorted(set(reviews) | {tid for tid, f in mech.items() if f})
+
+        if not flagged:
+            if reviews or any(mech.values()):
+                st.success("Nothing flagged — these tasks match the spec.")
             return
-        # re-fetch tasks so text is current after any accepts
-        cur = {t["id"]: t for t in store.list_tasks(jid)}
-        weak_found = False
-        for tid, rev in reviews.items():
+
+        for tid in flagged:
             if tid not in cur:
                 continue
-            if rev.get("error"):
-                st.error(f"Couldn't review one task: {rev['error']}")
-                continue
-            if not rev.get("weak"):
-                continue
-            weak_found = True
-            task = cur[tid]
-            axes = ", ".join(rev.get("axes", [])) or "weak"
-            st.markdown(f"**Weak task** ({axes}):")
+            task, rev = cur[tid], reviews.get(tid, {})
+            labels = [r for r, _ in mech.get(tid, [])] + list(rev.get("violations", []))
+            st.markdown(f"**#{tid}** — {', '.join(labels) or 'flagged'}")
             st.caption(md_safe(task["text"]))
-            if st.button("🗑 Delete this task instead", key=f"coach_del{tid}"):
-                store.delete_task(tid)
-                st.session_state.setdefault("open_jobs", set()).add(jid)
-                st.rerun()
-            tier1 = rev.get("tier1", "").strip()
-            note = rev.get("tier1_note", "").strip()
+            for _, msg in mech.get(tid, []):
+                st.markdown(f"- {md_safe(msg)}")
+
+            split = rev.get("split_into") or []
+            if len(split) > 1:
+                st.markdown("**Two accomplishments in one task — suggested split:**")
+                for s in split:
+                    st.markdown(f"- {md_safe(s)}")
+                if st.button("Split into separate tasks", key=f"coach_split{tid}"):
+                    for s in split:
+                        store.add_task(jid, s.strip())
+                    store.delete_task(tid)
+                    st.session_state.setdefault("open_jobs", set()).add(jid)
+                    st.rerun()
+
+            tier1 = (rev.get("tier1") or "").strip()
+            note = (rev.get("tier1_note") or "").strip()
             if tier1 and tier1 != task["text"]:
                 st.markdown(f"**Suggested (using only what's here):** {md_safe(tier1)}")
                 if note:
@@ -268,13 +324,14 @@ def _coach_widget(job):
                     store.update_task(tid, tier1)
                     st.session_state.setdefault("open_jobs", set()).add(jid)
                     st.rerun()
-            else:
-                st.caption(note or "Can't strengthen this without more detail — see the questions below.")
+            elif note:
+                st.caption(md_safe(note))
+
             qs = rev.get("questions", [])
             if qs:
                 with st.expander("Go further — answer what you know, skip the rest"):
-                    st.caption("These only ask you to add facts you already have. Anything you "
-                               "answer gets folded in; anything you skip is left out — nothing invented.")
+                    st.caption("These only ask for facts you already have. Anything you answer "
+                               "gets folded in; anything you skip is left out — nothing invented.")
                     for q in qs:
                         st.markdown(f"- {md_safe(q)}")
                     ans = st.text_area("Your answers", key=f"coach_ans{tid}",
@@ -283,8 +340,8 @@ def _coach_widget(job):
                         if ans.strip():
                             with st.spinner("Rewriting with your facts..."):
                                 try:
-                                    stronger = coach_apply_answers(task["text"], ans.strip())
-                                    st.session_state[f"coach_pending{tid}"] = stronger
+                                    st.session_state[f"coach_pending{tid}"] = coach_apply_answers(
+                                        task["text"], ans.strip())
                                 except Exception as e:
                                     st.error(f"Rewrite failed: {e}")
                     pending = st.session_state.get(f"coach_pending{tid}")
@@ -296,9 +353,12 @@ def _coach_widget(job):
                             st.session_state.pop(f"coach_pending{tid}", None)
                             st.session_state.setdefault("open_jobs", set()).add(jid)
                             st.rerun()
+
+            if st.button("🗑 Delete this task instead", key=f"coach_del{tid}"):
+                store.delete_task(tid)
+                st.session_state.setdefault("open_jobs", set()).add(jid)
+                st.rerun()
             st.divider()
-        if not weak_found:
-            st.success("No weak tasks found for this job — these all earn their place.")
 
 def _braindump_widget(job_id, key_ns):
     """Reusable 'describe what you did, I'll draft tasks' flow. key_ns keeps widget keys

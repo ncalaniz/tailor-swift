@@ -1,5 +1,7 @@
 # test_checks.py — prove the checkers fire on the REAL failures from the 7/24 real-ad runs,
 # and stay quiet on the drafts that were actually fine. Run: python test_checks.py
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import checks
 
 TASKS = [

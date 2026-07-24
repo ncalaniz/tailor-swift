@@ -304,3 +304,99 @@ def run_all(draft, tasks, ad_text="", extra_vocab=""):
             seen.add(key)
             unique.append(f)
     return unique
+
+# =====================================================================================
+# BANK-SIDE CHECKS — these run over the TASK BANK itself, before any resume exists.
+# Same idea as the draft checks: whatever plain code can settle, code settles. The coach
+# then spends model calls only on genuine judgment (altitude, outcome, vagueness).
+# Rule numbers refer to TASK_SPEC.md.
+# =====================================================================================
+
+# Words that signal a record leaning on something outside itself (spec rule 8).
+DEPENDENT = ["this project", "that project", "the above", "as mentioned", "same as",
+             "this effort", "this work", "these teams", "also,", "additionally"]
+
+# Attribution markers: any one of these makes who-did-what explicit (spec rule 4).
+ATTRIB = ["team", "teams", "partnered", "partnership", "with the", "personally", "owned",
+          "own ", "founding member", "alongside", "collaborat", "we ", "supported", "helped",
+          "contributed", "as part of", "jointly", "my ", "reports"]
+
+# Verbs that are genuinely ambiguous about solo-vs-team when they open a record. Leadership
+# verbs (led, managed, directed, oversaw) already carry attribution, so they're not here —
+# flagging those would fire on most of a healthy bank, and a coach that flags everything is
+# a coach nobody reads.
+AMBIGUOUS_VERBS = ["built", "developed", "created", "designed", "implemented", "launched",
+                   "established", "renegotiated", "negotiated", "delivered", "produced",
+                   "automated", "migrated", "consolidated", "instituted", "introduced"]
+
+def weld_risk(tasks, min_shared=3):
+    """Spec rule 3 (distinctiveness). Pairs of tasks at the SAME job that share enough
+    distinctive vocabulary that a summarizer will read them as one story — the deterministic
+    version of 'these two are going to blend.' Ungrouped pairs only: tasks that already share
+    a group label are sanctioned to combine, so overlap there is fine and expected.
+    Returns [(shared_count, [w1, w2, ...], task_a, task_b), ...], worst first."""
+    out = []
+    for i, a in enumerate(tasks):
+        for b in tasks[i + 1:]:
+            if a["job_id"] != b["job_id"]:
+                continue
+            if a["group"] and b["group"] and a["group"] == b["group"]:
+                continue                      # sanctioned pair — combining is allowed
+            shared = _distinct(a["text"]) & _distinct(b["text"])
+            if len(shared) >= min_shared:
+                out.append((len(shared), sorted(shared), a, b))
+    return sorted(out, key=lambda x: -x[0])
+
+def spelling_drift(tasks):
+    """Spec rule 10 (canonical names). The same word written more than one way across the bank
+    ('JIRA' vs 'Jira'), which quietly breaks every check that compares strings. Differences in
+    only the first letter are ignored — that's just sentence capitalisation.
+    Returns {lowercase_word: [surface forms]}."""
+    forms = {}
+    for t in tasks:
+        for w in re.findall(r"\b[A-Za-z][A-Za-z0-9&\.]{2,}\b", t["text"]):
+            if w.lower() in STOP:
+                continue
+            forms.setdefault(w.lower(), set()).add(w)
+    drift = {}
+    for key, variants in forms.items():
+        if len(variants) < 2:
+            continue
+        if len({v[1:] for v in variants}) > 1:      # differ beyond the first letter
+            drift[key] = sorted(variants)
+    return drift
+
+def spec_scan(task_text):
+    """Per-task spec violations that plain code can settle. Returns [(rule, message)].
+    Deliberately narrow: only things a string can prove, so the model never gets asked."""
+    out = []
+    low = task_text.lower()
+
+    for phrase in DEPENDENT:                                    # rule 8
+        if phrase in low:
+            out.append(("rule8_self_contained",
+                        f"'{phrase.strip()}' points at something outside this task — "
+                        "the tailor sees tasks one at a time and in any order"))
+            break
+
+    first = (_words(task_text) or [""])[0].strip(".,")           # rule 4
+    if first in AMBIGUOUS_VERBS and not any(m in low for m in ATTRIB):
+        out.append(("rule4_attribution",
+                    f"opens with '{first}' and names no team or partner — solo work or a team "
+                    "effort? An ambiguous verb gets rendered as sole credit"))
+
+    for q in QUALIFIERS:                                        # rule 5
+        if re.search(rf"\b{q}\b", low):
+            out.append(("rule5_fragile_qualifier",
+                        f"'{q}' is load-bearing and lives in a droppable modifier — it gets "
+                        "trimmed in compression; restate it in the noun or verb"))
+            break
+
+    for m in re.finditer(r"\$[\d,\.]+\s?[kmb]?", low):          # rule 9
+        window = low[max(0, m.start() - 60):m.end() + 60]
+        if not any(p in window for p in PERIODS) and "spend" not in window and "budget" not in window:
+            out.append(("rule9_number_period",
+                        f"'{m.group(0)}' has no timeframe — a figure with no period gets "
+                        "re-scaled (quarterly silently becomes annual)"))
+            break
+    return out

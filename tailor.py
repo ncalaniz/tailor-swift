@@ -514,64 +514,105 @@ def braindump_to_tasks(dump_text):
 # ============================================================================
 
 COACH_SYS = (
-    "You are a resume-task quality coach. You are given ONE task (a resume bullet fact) from the "
-    "candidate's bank, plus the seniority level of the job it belongs to. Judge whether the task is "
-    "WEAK — i.e. genuinely unlikely to earn its place on a resume at that seniority. A task is weak ONLY "
-    "if it is thin on ALL of these at once:\n"
-    "  - no number/scale AND no meaningful scope (a task naming real scope like '3,000 employees', "
-    "'14 sites', 'three domains', '30+ roles' is NOT weak on this axis even with no %/$).\n"
-    "  - AND no outcome or implied outcome (a task that names what it enabled/prevented/produced, OR "
-    "where the outcome is obvious from the action, is NOT weak on this axis).\n"
-    "  - AND low altitude for the role (a bare administrative action like 'renewed a contract', "
-    "'attended meetings', 'updated the tracker' reading junior for a Director).\n"
-    "BE VERY CONSERVATIVE. Flag a task WEAK only when it is thin on scope AND thin on outcome AND low "
-    "altitude — all three. If a task has real scope OR a real (or clearly-implied) outcome, it is NOT "
-    "weak, FULL STOP, even with no dollar figure. Most tasks in a strong bank are NOT weak; expect to "
-    "flag only the genuinely thin ones (like a bare 'renewed the contract' with no scope or stakes). "
-    "When in doubt, do NOT flag — a false flag on a good task trains the user to inflate, which is worse "
-    "than a miss.\n\n"
-    "Then produce a TIER-1 REWRITE. ABSOLUTE RULE — THE TIER-1 REWRITE MAY NOT ADD ANY FACT NOT PRESENT "
-    "IN THE ORIGINAL TASK. No invented numbers, scope, outcomes, or context. SECOND RULE — DO NOT INFLATE "
-    "ALTITUDE. Strengthen by choosing a more precise verb and surfacing an outcome the task ALREADY "
-    "STATES OR DIRECTLY IMPLIES — but do NOT reach for grander framing words ('enterprise', 'strategic', "
-    "'end-to-end', 'governance', 'transformational') unless that word is literally supported by the task. "
-    "A rewrite that sounds one notch more important than the original is a FAILURE, even if technically "
-    "honest — it drifts the resume toward inflation. Aim for 'the same fact, said precisely', not 'the "
-    "same fact, said grander'. If the task is 'renewed the Salesforce contract' with no other detail, the Tier-1 rewrite "
-    "CANNOT say a dollar amount, cannot say what it prevented, cannot name scope — because none of that is "
-    "in the task. In that case the honest Tier-1 rewrite is barely different from the original, and that "
-    "is CORRECT: if there's nothing to work with, say so via the questions, don't fabricate. If you cannot "
-    "improve the task without inventing, return the original unchanged as the tier1 and set "
-    "tier1_note to explain that strengthening requires facts only the candidate can supply.\n\n"
-    "Then produce TIER-2 QUESTIONS: specific questions whose answers WOULD let you strengthen the task, "
-    "each targeting a real gap (the missing number, the missing outcome, the missing scope). These are "
-    "invitations, never assumptions — phrase them so a 'don't know' is a fine answer. Do NOT ask leading "
-    "questions that presume facts ('how did renewing it save the company millions?' assumes millions).\n\n"
+    "You are a resume-task quality coach. You are given ALL the tasks from ONE job in the "
+    "candidate's bank, each with an id, plus the seniority of that job. Judge each task against "
+    "the parts of the task spec that require JUDGEMENT. Everything mechanical (attribution "
+    "markers, fragile qualifiers, vocabulary overlap, spelling consistency) is already checked by "
+    "code — do NOT comment on those.\n\n"
+    "YOUR FOUR RULES:\n"
+    "  rule1_atomic — the task describes TWO OR MORE distinct accomplishments (things done for "
+    "different reasons, or joined by 'and' / 'while' into one row). These force the tailor to "
+    "either split them badly or carry irrelevant material along.\n"
+    "  rule2_altitude — the task is too junior to earn a line at this seniority (a bare "
+    "administrative action: 'attended meetings', 'updated the tracker'), or so broad it covers a "
+    "whole year and can't be used precisely.\n"
+    "  rule6_scope — the task describes something that obviously HAD a size (headcount, sites, "
+    "dollars, volume, duration) and doesn't state it.\n"
+    "  rule7_outcome — the task says what was done but never what changed because of it.\n\n"
+    "BE VERY CONSERVATIVE. A task with real scope OR a real (or clearly implied) outcome is fine, "
+    "FULL STOP, even with no dollar figure. Most tasks in a strong bank are fine. A false flag on "
+    "a good task trains the candidate to inflate, which is worse than a miss. When in doubt, say "
+    "nothing.\n\n"
+    "RETURN ONLY TASKS THAT VIOLATE SOMETHING. Omit every task that's fine — do not return an "
+    "entry for it.\n\n"
+    "For each flagged task also produce:\n"
+    "  tier1 — a rewrite that ADDS NO FACT NOT ALREADY IN THE TASK. Four hard limits:\n"
+    "    (a) NO FACT FROM ANY OTHER TASK IN THIS LIST. You can see the whole job's tasks, but each "
+    "rewrite may use ONLY the text of its own task. Pulling scope, numbers or context from a "
+    "neighbouring task is a serious error — those are separate claims and must stay separate.\n"
+    "    (b) NO INFERRED OUTCOMES. An outcome that is 'obviously implied' or a 'logical "
+    "consequence' is still not stated, and stating it makes it a claim the candidate never made. "
+    "If the outcome isn't in the words, it goes in QUESTIONS, never in the rewrite.\n"
+    "    (c) NO ALTITUDE INFLATION: don't reach for 'enterprise', 'strategic', 'end-to-end', "
+    "'governance', 'transformational' unless the task literally supports it. A rewrite that sounds "
+    "one notch more important than the original is a FAILURE even if technically honest. Aim for "
+    "'the same fact, said precisely', never 'the same fact, said grander'.\n"
+    "    (d) IF YOU CANNOT IMPROVE IT WITHOUT INVENTING, set tier1 to the task's ORIGINAL TEXT, "
+    "COPIED EXACTLY, character for character. Never write a sentence ABOUT the rewrite (like "
+    "'return original text unchanged' or 'no change needed') into the tier1 field — that field is "
+    "always task text and nothing else. Put your reasoning in tier1_note instead.\n"
+    "  split_into — ONLY for rule1_atomic: the task text divided into two or more separate task "
+    "texts, each self-contained, using ONLY words and facts already present in that task. NEVER "
+    "emit placeholders, brackets or blanks like '[outcome]', '[measure]', 'TBD' — every returned "
+    "line must be usable as-is. If a clean split needs facts that aren't there, omit split_into "
+    "entirely and ask for the facts in questions.\n"
+    "  questions — specific questions whose answers WOULD let you strengthen it, each targeting a "
+    "real gap. Invitations, never assumptions: phrase them so 'I don't know' is a fine answer. "
+    "Never ask a leading question that presumes a fact ('how did that save millions?' presumes "
+    "millions).\n\n"
     "Respond with ONLY a JSON object, no fences, no preamble:\n"
-    "{\"weak\": true/false, \"axes\": [\"NO_QUANT\",...], \"tier1\": \"the safe rewrite (or original if "
-    "nothing can be done without inventing)\", \"tier1_note\": \"one line: what you changed, or why you "
-    "couldn't\", \"questions\": [\"...\",\"...\"]}"
+    "{\"reviews\": [{\"id\": 12, \"violations\": [\"rule7_outcome\"], \"tier1\": \"...\", "
+    "\"tier1_note\": \"what you changed, or why you couldn't\", \"split_into\": [\"...\",\"...\"], "
+    "\"questions\": [\"...\"]}]}"
 )
 
-def coach_review_task(task_text, seniority=""):
-    """Assess one task's strength and return a dict with the weak flag, axes, a
-    no-invention Tier-1 rewrite, and Tier-2 questions. Never fabricates facts."""
-    level = f"JOB SENIORITY: {seniority}\n\n" if seniority else "JOB SENIORITY: (not stated — judge from the task)\n\n"
-    prompt = f"{level}TASK:\n{task_text}"
-    raw = ask_claude(prompt, system=COACH_SYS, model=MODEL, max_tokens=800)
+def coach_review_job(tasks, seniority=""):
+    """Review a whole job's tasks in ONE call (was one call per task — 48 calls for this bank).
+    Returns {task_id: review_dict} containing ONLY tasks the coach flagged. The mechanical spec
+    rules are handled by checks.spec_scan/weld_risk instead; this call is for judgement only."""
+    if not tasks:
+        return {}
+    level = seniority or "(not stated — judge from the tasks)"
+    listing = "\n".join(f"[{t['id']}] {t['text']}" for t in tasks)
+    prompt = f"JOB SENIORITY: {level}\n\nTASKS:\n{listing}"
+    raw = ask_claude(prompt, system=COACH_SYS, model=MODEL, max_tokens=4000)
     clean = raw.strip().replace("```json", "").replace("```", "").strip()
     try:
-        result = json.loads(clean)
+        payload = json.loads(clean)
     except json.JSONDecodeError:
-        raise ValueError("The coach response got cut off before finishing — try running it again.")
-    if not isinstance(result, dict):
-        raise ValueError("Expected a coach assessment object")
-    result.setdefault("weak", False)
-    result.setdefault("axes", [])
-    result.setdefault("tier1", task_text)
-    result.setdefault("tier1_note", "")
-    result.setdefault("questions", [])
-    return result
+        raise ValueError("The coach response got cut off before finishing — try again, or "
+                         "review a job with fewer tasks.")
+    originals = {t["id"]: t["text"] for t in tasks}
+    out = {}
+    for r in (payload.get("reviews") or []):
+        try:
+            tid = int(r.get("id"))
+        except (TypeError, ValueError):
+            continue
+        r.setdefault("violations", [])
+        r.setdefault("tier1_note", "")
+        r.setdefault("questions", [])
+
+        # Guard: tier1 must be TASK TEXT. Models sometimes answer the instruction instead of
+        # following it ("Return original text unchanged.") — accepting that would overwrite the
+        # task with a sentence about the task. Also drop suspiciously short rewrites.
+        tier1 = (r.get("tier1") or "").strip().strip('"')
+        original = originals.get(tid, "")
+        meta = ("return original", "unchanged", "no change", "cannot improve", "n/a",
+                "same as original", "leave as is")
+        if (not tier1 or any(m in tier1.lower() for m in meta) and len(tier1) < 90
+                or len(tier1) < len(original) * 0.6):
+            tier1 = ""
+        r["tier1"] = tier1
+
+        # Guard: never surface a split containing placeholders — accepting it would write
+        # '[outcome]' into the bank.
+        splits = [s.strip() for s in (r.get("split_into") or []) if s and s.strip()]
+        if any(re.search(r"[\[\]{}]|\bTBD\b|\bX%\b", s) for s in splits):
+            splits = []
+        r["split_into"] = splits
+        out[tid] = r
+    return out
 
 COACH_APPLY_SYS = (
     "You are strengthening ONE resume task using facts the candidate just supplied in answer to your "
