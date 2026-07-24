@@ -1,0 +1,157 @@
+About the job
+Overview
+
+Keysight is at the forefront of technology innovation, delivering breakthroughs and trusted insights in electronic design, simulation, prototyping, test, manufacturing, and optimization. Our ~15,000 employees create world-class solutions in communications, 5G, automotive, energy, quantum, aerospace, defense, and semiconductor markets for customers in over 100 countries. Learn more about what we do.
+
+Our award-winning culture embraces a bold vision of where technology can take us and a passion for tackling challenging problems with industry-first solutions. We believe that when people feel a sense of belonging, they can be more creative, innovative, and thrive at all points in their careers.
+
+Role Overview
+
+The Sales Operations Product Manager is accountable for the end-to-end (E2E) sales workflow within Salesforce CRM and the experience of the global user population operating within that workflow. This role owns the strategy, roadmap, and execution model that ensures sales processes are optimized, scalable, and aligned with enterprise priorities.
+
+Serving as the primary business owner of the workflow, this individual drives alignment between executive strategy, sales operation’s needs, end users and, IT delivery while leading a team of Business Process & Analysts (BPA) & SMEs to execute against a continuous product development lifecycle.
+
+Responsibilities
+
+Key Responsibilities
+
+E2E Workflow Ownership
+
+Accountable for the full lifecycle and performance of a defined E2E sales workflow (e.g., lead-to-opportunity, quote-to-cash, forecasting and prospecting)
+Owns the user experience for the global population operating within the workflow
+Ensures consistency, scalability, and standardization across regions and business units
+
+Strategy & Vision Alignment
+
+Owns the creation, maintenance, and communication of the E2E workflow strategy and vision
+Aligns product strategy with corporate and executive priorities
+Acts as the single point of accountability for ensuring the workflow delivers measurable business value
+
+Roadmap & Prioritization
+
+Translates strategic vision into a clearly defined, actionable roadmap
+Establishes near-term and long-term priorities aligned to business outcomes
+Makes monthly prioritization decisions on user stories and enhancements in support of roadmap delivery
+Balances competing demands across regions, functions, and technical constraints
+
+Performance & Outcomes Management
+
+Defines and maintains KPIs and success metrics tied to development and changes to existing sales workflows that depict digital product team success and alignment with business priorities (e.g., user support tickets, digital product team outcomes)
+Continuously monitors and communicates workflow performance to stakeholders and leadership
+Uses data and insights to drive continuous improvement in process and system capabilities
+
+User Engagement & Feedback Loop
+
+Maintains a strong, continuous connection with the end-user community
+Establishes and operates a structured engagement model including:
+Regular focus groups
+Standardized intake and feedback processes
+Direct engagement with key users and stakeholders
+Translates feedback into actionable product enhancements and priorities
+Team Leadership (BPA & SMEs)
+
+Leads a team of Business Process & Analysts & SMEs responsible for supporting both strategy and execution
+Ensures the team effectively:
+Investigates user feedback and business issues
+Defines and documents requirements and user stories
+Partners with IT to design and assess solutions
+Grooms backlog items and prioritizes stories for development
+Pushes prioritized work into digital product teams working with product owners on monthly sprint cycles
+Develops and maintains training content and delivery
+Manages efforts using project management methodologies
+Maintains continuous knowledge growth on technology and approach for E2E sales
+Cross-Functional Delivery
+
+Partners closely with IT, Sales, Marketing, Partner Delivery, and other stakeholders to ensure successful solution delivery
+Ensures clear separation of business-owned process design and IT-owned technical implementation
+Participates in Agile ceremonies including backlog grooming, sprint planning, and UAT
+Facilitates global stakeholder alignment through relationship building and align cross business unit roadmaps
+
+Salesforce Platform Optimization
+
+Leverages Salesforce capabilities (Sales Cloud, CPQ, automation tools, reporting, and AI) to support workflow optimization
+Ensures proper governance, data integrity, and platform scalability
+Identifies opportunities for automation and simplification
+
+Understands how to manage tech debt ensuring system optimization
+
+Qualifications
+
+Required Qualifications
+
+7–12+ years of experience in Sales Operations, Product Management, or Salesforce platform ownership
+Deep expertise in Salesforce CRM (Sales Cloud required; CPQ and analytics preferred)
+Demonstrated experience owning end-to-end business processes at scale
+Proven ability to translate executive strategy into product roadmap and execution
+Experience leading cross-functional teams and influencing senior stakeholders
+Strong analytical, problem-solving, and decision-making skills
+
+Expanded Technical & Industry Expertise
+
+Strong understanding of boundary systems that influence and enhance the sales experience, including:
+Marketing automation platforms (e.g., lead management, campaign attribution)
+Partner Relationship Management (PRM) systems
+Customer Success / Customer Lifecycle Management tools
+Advanced working knowledge of Microsoft and Macintosh workstation environments, including productivity, file management, and system-level efficiencies
+Proficiency with enterprise collaboration tools (e.g., Teams, SharePoint, Slack, Miro, Confluence) to drive cross-functional engagement
+Familiarity with wireframing and prototyping technologies (e.g., Figma, Lucidchart, Balsamiq) to support UX-driven solution design
+Demonstrated ability to stay current on industry best practices, emerging technologies, and trends in sales operations, CRM platforms, and digital product management and adoption
+Preferred Qualifications
+
+Experience leading global sales process standardization efforts
+Salesforce certifications (Admin, Advanced Admin, Platform App Builder, Architect, CPQ Specialist)
+Familiarity with Agile product management and sprint-based delivery models
+Experience with AI-driven sales tools (e.g., Einstein AI, Data Warehouses, LLM)
+Background in UX/UI design or digital experience optimization
+
+Key Competencies
+
+End-to-end ownership mindset with strong business accountability
+Strategic thinking with disciplined execution
+Strong stakeholder engagement and influence
+Data-driven decision-making
+Deep focus on user experience and adoption
+Ability to lead through ambiguity and competing priorities
+Strong systems thinking across interconnected sales and customer ecosystem platforms
+Continuous learning mindset with focus on industry trends, tools, and innovation
+
+Success Metrics
+
+Measurable improvement in E2E workflow performance and efficiency
+Increased global user adoption and satisfaction
+Alignment of delivered capabilities to strategic priorities
+Predictable and effective monthly sprint delivery
+Strong engagement and feedback loop with the user community
+Improved data quality, reporting accuracy, and operational insights
+
+Careers Privacy StatementKeysight is an Equal Opportunity Employer.
+
+Careers Privacy Statement
+
+Keysight Technologies Inc. is an equal opportunity employer. Qualified applicants will receive consideration for employment without regard to race, color, religion, sex, sexual orientation, gender identity, national origin, protected veteran status, disability or any other protected categories under all applicable laws.
+
+Most offers will be between the minimum and the midpoint of the Salary Range listed below.
+
+MIN $119,850.00 - MAX $199,750.00
+
+Note: For other locations, pay ranges will vary by region
+
+This role is eligible for Keysight Results Bonus Program
+
+US Employees May Be Eligible For The Following Benefits
+
+Medical, dental and vision
+Health Savings Account
+Health Care and Dependent Care Flexible Spending Accounts
+Life, Accident, Disability insurance
+Business Travel Accident and Business Travel Health
+401(k) Plan
+Flexible Time Off, Paid Holidays
+Paid Family Leave
+Discounts, Perks
+Tuition Reimbursement
+Adoption Assistance
+ESPP (Employee Stock Purchase Plan)
+Restricted Stock Units
+
+Careers Privacy Statement***Keysight is an Equal Opportunity Employer.***

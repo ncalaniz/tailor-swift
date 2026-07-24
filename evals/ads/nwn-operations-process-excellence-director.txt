@@ -1,0 +1,42 @@
+About the job
+Company Overview
+
+NWN is the leading AI-powered technology solutions provider for North America's most innovative public and private organizations. For more than 30 years, NWN has helped over 5,000 CIOs deliver technology modernization programs with its Intelligent Workplace, Customer Experience (CX), Managed Devices, Cybersecurity and Public Safety, Connectivity, and Intelligent Cloud solutions. The company's proprietary Experience Management Platform ensures seamless service delivery, real-time observability and improved efficiency for its clients' most demanding technology needs. NWN is a high-performance, high-integrity team of 1,000+ experts committed to a customer-obsessed culture, earning a 75 Customer Net Promoter Score. The company has been recognized with hundreds of industry awards and is proud to be a 'Best Place to Work' with an 86 Employee Net Promoter Score. For more information, visit: NWN.ai.
+
+Responsibilities
+
+The Operations Process Excellence Director is a senior operational leader and continuous improvement practitioner who will build and lead the OPE function from the ground up. The core mandate of this role is to make NWN's Opportunity-to-Cash engine faster, more accurate, more scalable, and more profitable — through structured process optimization, fact-based prioritization, and disciplined change management. This leader will own the process optimization roadmap for O2C, define and track the KPI framework that keeps performance visible, and lead the change management and training capability that ensures the organization can actually operate improved processes at scale. A defining responsibility of the role is the O2C Readiness framework — the gate through which all new offerings must pass before they can be transacted.
+
+ Lead and execute process optimization initiatives across the O2C lifecycle to improve cycle time, reduce errors, eliminate rework, and minimize margin leakage. 
+ Manage the process optimization roadmap, including identifying opportunities, sizing impact, building business cases, and driving execution. 
+ Serve as the senior SME for O2C process design, acting as the escalation point for exceptions, disputes, and process-related decisions. 
+ Establish and govern process change management, including evaluating impacts, sequencing rollouts, and maintaining process integrity. 
+ Maintain and continuously update process documentation and SOPs to reflect optimized, real-world operational practices. 
+ Partner with IT and systems teams to translate process design into system configurations across platforms (e.g., NetSuite, ServiceNow, Salesforce). 
+ Build and oversee training programs to ensure teams are equipped to execute O2C processes effectively, including onboarding and ongoing education. 
+ Define and manage the O2C KPI framework, including metrics such as order accuracy, invoice quality, cycle time, unbilled inventory, and margin performance. 
+ Design and lead the O2C readiness framework, ensuring all new offerings, pricing models, and go-to-market changes are validated prior to launch. 
+ Lead and develop a high-performing OPE team while partnering cross-functionally with Sales, Finance, Operations, and PMO leadership to drive accountability, alignment, and continuous improvement. 
+
+Qualifications
+
+ Bachelor’s degree in Business, Operations, Finance, related field, or equivalent work experience. 
+ 10+ years of progressive experience in operations, process excellence, or operational finance roles, with demonstrated impact on business performance 
+ Proven track record leading structured process optimization or continuous improvement programs. 
+ Deep knowledge of Opportunity-to-Cash processes: quoting, order management, fulfillment, billing, and revenue recognition 
+ Strong analytical capability with experience owning KPI frameworks, conducting root cause analysis, and connecting data to operational decisions 
+ Demonstrated experience designing and delivering change management programs at organizational scale 
+ Experience working within or adjacent to ERP platforms and ITSM platforms (NetSuite and ServiceNow preferred) 
+ Exceptional communication and executive presence; ability to influence without authority across a complex organization 
+
+Work Locations:
+
+ Remote: Job duties are performed from the employee’s home home or another approved remote location. Remote employees are expected to maintain productivity, communication, and availability during agreed-upon working hours, in alignment with company policies. 
+
+Travel: Yes
+
+At NWN, we provide a comprehensive benefits package to support your well-being in and out of work. This includes medical, dental, and vision plans, Health Savings Account (HSA) and Flexible Spending Accounts (FSAs), income protection through disability and life insurance, and a 401(k) with company match. Enjoy unlimited PTO, paid company holidays, hybrid/remote work, paid bonding leave for eligible employees, employee discounts, and access to our Employee Assistance Program (EAP). Additional offerings include accident, critical illness, long-term care, and hospital indemnity coverages, legal and identity theft protection, pet insurance, supplemental life insurances, referral bonuses, charitable donation matching, and allowances for eligible roles. Join a team that values the health and wellbeing of all our employees!
+
+All offers of employment at NWN are contingent upon the successful completion of a comprehensive background check. This process ensures a safe and secure work environment for all employees.
+
+NWN is an Equal Opportunity Employer: NWN provides equal employment opportunity to all employees and applicants for employment free from unlawful discrimination based on race, color, religion, gender, age, national origin, disability, veteran status, marital status, sexual orientation or any other status or condition protected by local, state or federal law.

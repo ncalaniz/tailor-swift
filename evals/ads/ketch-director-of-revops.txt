@@ -1,0 +1,62 @@
+About the job
+Ketch is redefining responsible data use for the AI era. The Ketch Data Permissioning Platform is the new layer of business technology that helps brands collect, control, and activate permissioned, privacy-safe data across every device, system, and third-party app. Brands around the world use Ketch to simplify privacy and consent operations, increase revenue from advertising, data, and AI initiatives, and build trust with customers and partners.
+
+About Our Team
+
+The successful candidate will work hand-in-hand with leaders and teams across Customer Experience, Sales, Partnerships, and Marketing, including Customer Success Managers, Professional Services, Support, Account Executives, and BDRs. Through our work, we bring Ketch values of passion, growth, grit, collaboration, and integrity to life. We love to learn and are open to feedback. Ketch is growing rapidly and we’re scaling our operations to help further accelerate our growth. Our new colleague will enjoy working in a fast-paced environment.
+
+About The Role
+
+In this role, you will own Customer Experience Operations and Partner Operations, and provide hands-on support for Sales Operations. You will report directly to the VP of Revenue Operations & SMB Sales and partner closely with them on the broader revenue operations agenda across our go-to-market and post-sale motions.
+
+At Ketch, operations sits at the intersection of systems, process, and data: you design systems that minimize manual process wherever reasonable, building for scale rather than automation that gets torn out in six months. Those systems capture the data needed to analyze GTM processes, and those analyses drive the next round of process and systems improvements.
+
+We also believe AI is changing what a lean operations team can accomplish. Rather than building out separate ops leads, system admins, and pods of analysts, we are looking for one exceptional operator who works with AI to cover that ground: streamlining systems improvements and building AI-powered tools that put data and analysis directly in the hands of leaders across the business.
+
+This is a remote role within the United States.
+
+Responsibilities
+
+Experience
+
+Qualifications And Characteristics
+
+Operations:
+Own the operational backbone for Customer Success, Professional Services, Support, and Renewals. Design and implement scalable systems that reduce manual work across onboarding, health scoring, escalations, capacity forecasting and management, services delivery, and the renewal motion. Build the analyses that surface churn risk, expansion opportunity, services margin, and support efficiency, and turn findings into process and systems changes. 
+Stand up and maintain the operational infrastructure for our partner ecosystem: partner onboarding, deal registration, co-sell tracking, partner-sourced pipeline reporting, certifications, delivery quality, churn, and psat. Give partner leadership clear visibility into partner performance and program ROI. 
+Support core sales operations: pipeline hygiene, forecasting cadence, process questions, and CRM workflow improvements. Partner with sales leadership on analyses that inform go-to-market decisions. 
+Systems:
+Design durable systems, not quick fixes. Do the math: quantify and prioritize business value before investing in automation. Ensure every system captures the data needed to analyze the process it runs. Make responsible, effective use of company assets. 
+Work with AI tools to accelerate systems design, administration, and integration work that historically required dedicated admins. Build AI-driven analytical tools and self-serve reporting that empower leaders across the business to answer their own questions. Continuously evaluate where AI can replace manual processes, and where it shouldn’t. 
+Data & Analysis:
+Run the analyses that change how we operate, not just report the numbers. Construct the business case for process and systems investments. Tell the story. 
+10+ years in operational roles at SaaS companies 
+5+ years supporting Customer Success, Professional Services, Support, and/or Renewals teams 
+Demonstrated track record of designing and implementing business systems (CRM, CS platforms, support tooling, billing/renewal infrastructure) built to scale
+Example systems include: Salesforce, Hubspot, Gainsight, 
+Demonstrated experience running analyses that informed process and systems changes 
+Demonstrated, hands-on use of AI to multiply your output in systems work, analytics, or tool-building; be prepared to show us what you’ve built 
+Comfort operating as a senior individual contributor: you are the ops team, augmented by AI, and you like it that way 
+Demonstrated ability to translate operational and systems work into measurable business value 
+History of success working as part of a virtual global team environment 
+Exceptional time management and people alignment skills 
+Bachelor’s degree or equivalent 
+Able to legally work in the United States 
+English language fluency (spoken and written) 
+
+
+$180,000 - $220,000 a year
+
+The US Base Salary range for this full-time position is $180,000 – $220,000 + bonus + equity + benefits. Our salary ranges are determined by role, level, and location. The range displayed on each job posting reflects the minimum and maximum target for new hire salaries for the position across all US locations. Within the range, individual pay is determined by work location and additional factors, including job-related skills, experience, and relevant education or training. Your recruiter can share more about the specific salary range for your preferred location during the hiring process.
+
+Information collected and processed as part of any job applications you choose to submit is subject to Ketch’s Applicant Privacy Notice.
+
+Ketch is proud to be an equal opportunity employer. We are committed to building a workforce that is representative of the users we serve, creating a culture of belonging, and providing an equal employment opportunity regardless of race, creed, color, religion, gender, sexual orientation, gender identity/expression, national origin, disability, age, genetic information, veteran status, marital status, pregnancy or related condition (including breastfeeding), expecting or parents-to-be, criminal histories consistent with legal requirements, or any other basis protected by law.
+
+If you have a need that requires accommodation, please let us know by emailing [email protected] .
+
+Ketch is a global company and, in order to facilitate efficient collaboration and communication globally, English proficiency is a requirement for all roles unless stated otherwise in the job posting.
+
+To all recruitment agencies: Ketch does not accept agency resumes. Please do not forward resumes to our jobs alias, Ketch employees, or any other organization location. Ketch is not responsible for any fees related to unsolicited resumes.
+
+We may use artificial intelligence (AI) tools to support parts of the hiring process, such as reviewing applications, analyzing resumes, or assessing responses and identifying potential inconsistencies or verification signals in application materials based on available information. These tools assist our recruitment team but do not replace human judgment. Final hiring decisions are ultimately made by humans. If you would like more information about how your data is processed, please contact us.
